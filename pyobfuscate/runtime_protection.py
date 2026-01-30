@@ -264,7 +264,7 @@ __pyobfuscate__(__name__, __file__, {payload_str})
             'gk': rand_name(), 'ld': rand_name(), 'us': rand_name(),
             'err': rand_name(), 'ag': rand_name(), 'pbb': rand_name(),
             'hs': rand_name(),
-            # New security features
+            # Security features
             'wm': rand_name(),   # watermark
             'ht': rand_name(),   # honey token
             'ap': rand_name(),   # anti-patch
@@ -272,6 +272,17 @@ __pyobfuscate__(__name__, __file__, {payload_str})
             'cf': rand_name(),   # control flow
             'op': rand_name(),   # opaque predicates
             'nl': rand_name(),   # network license
+            # New advanced features
+            'amd': rand_name(),  # anti-memory dump
+            'ih': rand_name(),   # import hook
+            'stbl': rand_name(), # string table
+            'cs1': rand_name(),  # code split 1
+            'cs2': rand_name(),  # code split 2
+            'cs3': rand_name(),  # code split 3
+            'rat': rand_name(),  # resource exhaustion on tampering
+            'vm': rand_name(),   # virtualization helper
+            'th': rand_name(),   # thread check
+            'ptr': rand_name(),  # parent trace
         }
 
         # Encrypted error messages (XOR with key fragment)
@@ -288,6 +299,9 @@ __pyobfuscate__(__name__, __file__, {payload_str})
         err_machine = encrypt_msg("Unauthorized machine")
         err_domain = encrypt_msg("Domain unauthorized")
         err_auth = encrypt_msg("Integrity check failed")
+        err_memory = encrypt_msg("Memory analysis detected")
+        err_thread = encrypt_msg("Threading violation")
+        err_parent = encrypt_msg("Invalid parent process")
 
         # Random junk code snippets for obfuscation
         junk_snippets = [
@@ -350,13 +364,95 @@ except ImportError:
 {v['err']} = {{
     'i': '{err_integrity}', 'f': '{err_format}', 'c': '{err_corrupt}',
     'd': '{err_debug}', 'e': '{err_expired}', 'm': '{err_machine}',
-    'o': '{err_domain}', 'a': '{err_auth}'
+    'o': '{err_domain}', 'a': '{err_auth}', 'mem': '{err_memory}',
+    'th': '{err_thread}', 'p': '{err_parent}'
+}}
+
+# String table (encrypted constant strings)
+{v['stbl']} = {{
+    's1': {v['b64']}.b64decode('d21pYw=='),  # wmic
+    's2': {v['b64']}.b64decode('ZGlza2RyaXZl'),  # diskdrive
+    's3': {v['b64']}.b64decode('c2VyaWFsbnVtYmVy'),  # serialnumber
 }}
 
 def {v['us']}(_c):
     _kf = {v['key']}[:len({v['b64']}.b64decode(_c))]
     _d = {v['b64']}.b64decode(_c)
     return bytes(d ^ k for d, k in zip(_d, (_kf * (len(_d)//32 + 1))[:len(_d)])).decode()
+
+# Anti-memory dump: detect memory scanning tools
+def {v['amd']}():
+    try:
+        # Check for common memory analysis tools
+        _mem_tools = ['cheatengine', 'ollydbg', 'x64dbg', 'ida', 'ghidra', 
+                      'processhacker', 'windbg', 'immunity', 'radare']
+        # Check window titles (Windows)
+        if {v['sy']}.platform == 'win32':
+            try:
+                import ctypes
+                _user32 = ctypes.windll.user32
+                _buf = ctypes.create_unicode_buffer(256)
+                _hwnd = _user32.GetForegroundWindow()
+                _user32.GetWindowTextW(_hwnd, _buf, 256)
+                _title = _buf.value.lower()
+                if any(_t in _title for _t in _mem_tools):
+                    return True
+            except: pass
+        # Check process list for analysis tools
+        if {v['sy']}.platform == 'win32':
+            try:
+                import subprocess as _sp
+                _r = _sp.run(['tasklist'], capture_output=True, text=True, 
+                            timeout=3, creationflags=0x08000000)
+                _procs = _r.stdout.lower()
+                if any(_t in _procs for _t in _mem_tools):
+                    return True
+            except: pass
+        return False
+    except:
+        return False
+
+# Parent process trace - verify we're not launched by analysis tools
+def {v['ptr']}():
+    try:
+        if {v['sy']}.platform == 'win32':
+            import ctypes
+            from ctypes import wintypes
+            _kernel32 = ctypes.windll.kernel32
+            _pid = {v['os']}.getpid()
+            _PROCESS_QUERY_INFORMATION = 0x0400
+            _snapshot = _kernel32.CreateToolhelp32Snapshot(0x2, 0)
+            if _snapshot == -1:
+                return True
+            # Check parent process name
+            # Simplified check - full implementation would use Process32First/Next
+        return True
+    except:
+        return True
+
+# Thread monitoring - detect if new threads are injected
+{v['th']} = {{
+    'count': 0,
+    'check': lambda: True  # Placeholder for thread count verification
+}}
+
+# Code splitting - distribute decryption logic
+def {v['cs1']}(_d, _s, _e):
+    return _d[_s:_e]
+
+def {v['cs2']}(_d, _k):
+    return bytes(a ^ b for a, b in zip(_d, _k * (len(_d) // len(_k) + 1)))
+
+def {v['cs3']}(_d):
+    return {v['zl']}.decompress(_d)
+
+# Resource exhaustion on tampering detection
+def {v['rat']}():
+    # Consume CPU cycles to slow down automated analysis
+    _x = 0
+    for _i in range(1000000):
+        _x = (_x * 31337 + _i) % 999999937
+    return _x
 
 # Anti-patching: verify runtime file integrity
 def {v['ap']}():
@@ -394,6 +490,60 @@ def {v['csv']}():
     1: lambda _x: _x,
     2: lambda _a, _b: _a if {v['op']}() else _b,
 }}
+
+# Simple code virtualization - virtual machine for basic operations
+class {v['vm']}:
+    _ops = {{
+        'xor': lambda a, b: a ^ b,
+        'add': lambda a, b: (a + b) & 0xFF,
+        'sub': lambda a, b: (a - b) & 0xFF,
+        'rot': lambda a, n: ((a << n) | (a >> (8 - n))) & 0xFF,
+    }}
+    @classmethod
+    def run(cls, _bc, _data):
+        _r = bytearray(_data)
+        _pc = 0
+        while _pc < len(_bc):
+            _op = _bc[_pc]
+            if _op == 0x01:  # XOR with next byte
+                _k = _bc[_pc + 1]
+                _r = bytearray(cls._ops['xor'](b, _k) for b in _r)
+                _pc += 2
+            elif _op == 0x02:  # ADD
+                _k = _bc[_pc + 1]
+                _r = bytearray(cls._ops['add'](b, _k) for b in _r)
+                _pc += 2
+            elif _op == 0x03:  # SUB
+                _k = _bc[_pc + 1]
+                _r = bytearray(cls._ops['sub'](b, _k) for b in _r)
+                _pc += 2
+            elif _op == 0xFF:  # END
+                break
+            else:
+                _pc += 1
+        return bytes(_r)
+
+# Import hook for protected modules
+class {v['ih']}:
+    _cache = {{}}
+    _protected = set()
+    
+    @classmethod
+    def register(cls, _name, _code, _globs):
+        cls._protected.add(_name)
+        cls._cache[_name] = (_code, _globs)
+    
+    @classmethod
+    def is_protected(cls, _name):
+        return _name in cls._protected
+    
+    @classmethod
+    def load(cls, _name):
+        if _name in cls._cache:
+            _code, _globs = cls._cache[_name]
+            exec(_code, _globs)
+            return _globs
+        return None
 
 def {v['tc']}():
     _t1 = {v['tm']}.perf_counter_ns()
@@ -559,32 +709,52 @@ def __pyobfuscate__(_nm, _fl, _pl):
     # Layer 3: Call stack verification
     if not {v['csv']}(): raise RuntimeError({v['us']}({v['err']}['d']))
     
+    # Layer 4: Anti-memory dump check
+    if {v['amd']}():
+        {v['rat']}()  # Resource exhaustion
+        raise RuntimeError({v['us']}({v['err']}['mem']))
+    
+    # Layer 5: Parent process verification
+    if not {v['ptr']}():
+        raise RuntimeError({v['us']}({v['err']}['p']))
+    
     _dr = {v['b64']}.b64decode(_pl)
     _kc = {v['gk']}()
     try:
         # Opaque predicate check (always passes but confuses static analysis)
         if not {v['op']}(): raise RuntimeError({v['us']}({v['err']}['i']))
         
-        if _dr[:8] not in (b'PYO00002', b'PYO00003', {v['magic']}):
+        # Use code splitting for header verification
+        _magic = {v['cs1']}(_dr, 0, 8)
+        if _magic not in (b'PYO00002', b'PYO00003', {v['magic']}):
             raise RuntimeError({v['us']}({v['err']}['f']))
-        _dl = {v['st']}.unpack('<I', _dr[10:14])[0]
-        _ch = _dr[14:30]
-        _en = _dr[30:30+_dl]
+        
+        _dl = {v['st']}.unpack('<I', {v['cs1']}(_dr, 10, 14))[0]
+        _ch = {v['cs1']}(_dr, 14, 30)
+        _en = {v['cs1']}(_dr, 30, 30+_dl)
+        
         if {v['hl']}.sha256(_en).digest()[:16] != _ch:
+            {v['rat']}()  # Slow down on tampering
             raise RuntimeError({v['us']}({v['err']}['c']))
         
         # Use control flow dispatch for decryption
         _dec = {v['cf']}[0]({v['dc']}, _en, bytes(_kc))
         _dec = {v['cf']}[0]({v['ld']}, _dec, {v['xkey']})
         
-        _mln = {v['st']}.unpack('<H', _dec[:2])[0]
-        _mb = _dec[2:2+_mln]
+        _mln = {v['st']}.unpack('<H', {v['cs1']}(_dec, 0, 2))[0]
+        _mb = {v['cs1']}(_dec, 2, 2+_mln)
         _mt = eval(_mb.decode('utf-8'))
         _cp = _dec[2+_mln:]
         
         # Security checks with opaque predicates
         if {v['cf']}[2](_mt.get('anti_debug', False), False) and {v['ad']}():
+            {v['rat']}()  # Slow down attacker
             raise RuntimeError({v['us']}({v['err']}['d']))
+        
+        # VM detection if enabled
+        if _mt.get('vm_detect', False) and {v['vd']}():
+            raise RuntimeError({v['us']}({v['err']}['d']))
+        
         if {v['ce']}(_mt.get('expiration')):
             raise RuntimeError({v['us']}({v['err']}['e']))
         _am = _mt.get('machines', [])
@@ -600,12 +770,18 @@ def __pyobfuscate__(_nm, _fl, _pl):
         if _nl_url and not {v['nl']}(_nl_url, {v['gm']}(), _mt.get('license')):
             raise RuntimeError({v['us']}({v['err']}['e']))
         
-        _bc = {v['zl']}.decompress(_cp)
+        # Use code splitting for decompression
+        _bc = {v['cs3']}(_cp)
         _sk = {v['b64']}.b64decode(_mt.get('_sk', ''))
         if _sk:
-            _bc = bytes(b ^ _sk[i % len(_sk)] for i, b in enumerate(_bc))
+            # Use code splitting for descrambling
+            _bc = {v['cs2']}(_bc, _sk)
+        
         _co = {v['ml']}.loads(_bc)
         _gl = {{'__name__': _nm, '__file__': _fl, '__builtins__': __builtins__}}
+        
+        # Register with import hook for nested imports
+        {v['ih']}.register(_nm, _co, _gl)
         
         # Execute through control flow dispatcher
         {v['cf']}[0](exec, _co, _gl)

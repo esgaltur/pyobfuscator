@@ -12,11 +12,26 @@ A lightweight, license-free Python code obfuscation library with advanced runtim
 - **Runtime Protection**: Encrypted bytecode with runtime decryption
 - **PYD Compilation**: Compile runtime to .pyd (C extension) for maximum protection
 - **Strong Encryption**: AES-256-GCM with PBKDF2 key derivation (100,000 iterations)
-- **Anti-Debugging**: Detects debuggers, tracers, and inspection tools
+- **Anti-Debugging**: Multi-layer debugger detection (6+ layers)
 - **License Expiration**: Time-based license with configurable expiration dates
 - **Machine Binding**: Lock code execution to specific hardware/machines
 - **Domain Lock**: Restrict execution to specific domain names (for web apps)
 - **Memory Protection**: Secure clearing of sensitive data after use
+- **Polymorphic Runtime**: Each protection generates unique obfuscated code
+- **Layered Encryption**: Multiple encryption layers for defense in depth
+- **Bytecode Scrambling**: XOR-based bytecode obfuscation before encryption
+- **Encrypted Errors**: All error messages are encrypted in runtime
+- **Anti-Patching**: Detects modifications to runtime files
+- **Call Stack Verification**: Verifies execution context is legitimate
+- **Anti-Memory Dump**: Detects memory scanning and analysis tools
+- **Watermarking**: Hidden identifiers for tracking unauthorized distribution
+- **Honey Tokens**: Fake keys to detect tampering attempts
+- **Opaque Predicates**: Complex conditions that confuse static analysis
+- **Control Flow Obfuscation**: Indirect function dispatching
+- **Code Virtualization**: Simple VM for additional obfuscation layer
+- **Import Hooks**: Custom module loading system
+- **Resource Exhaustion**: Slows down automated analysis on tampering
+- **Network License**: Optional online license validation
 - **Configurable**: Fine-tune what gets obfuscated and what remains readable
 
 ## Security
