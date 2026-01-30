@@ -1,0 +1,8 @@
+﻿git : To https://github.com/esgaltur/pyobfuscator.git
+At line:1 char:48
++ ... \jw896\PycharmProjects\pyobfuscate; git push origin main 2>&1 | Out-F ...
++                                         ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (To https://gith...yobfuscator.git:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+   11cf884..3b2b22a  main -> main

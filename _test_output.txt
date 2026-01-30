@@ -1,3 +1,0 @@
-SUCCESS: Protection generated
-Code length: 681
-Runtime length: 9585
