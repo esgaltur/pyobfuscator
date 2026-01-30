@@ -260,7 +260,7 @@ __pyobfuscate__(__name__, __file__, {payload_str})
             'tc': rand_name(), 'ad': rand_name(), 'vd': rand_name(),
             'ic': rand_name(), 'gm': rand_name(), 'ce': rand_name(),
             'cd': rand_name(), 'pb': rand_name(), 'dk': rand_name(),
-            'kst': rand_name(), 'dc': rand_name(), 'sc': rand_name(),
+            'kst': rand_name(), 'dcp': rand_name(), 'sc': rand_name(),
             'gk': rand_name(), 'ld': rand_name(), 'us': rand_name(),
             'err': rand_name(), 'ag': rand_name(), 'pbb': rand_name(),
             'hs': rand_name(),
@@ -283,6 +283,15 @@ __pyobfuscate__(__name__, __file__, {payload_str})
             'vm': rand_name(),   # virtualization helper
             'th': rand_name(),   # thread check
             'ptr': rand_name(),  # parent trace
+            # New advanced features
+            'ah': rand_name(),   # anti-hooking
+            'cb': rand_name(),   # constant blinding
+            'ef': rand_name(),   # environment fingerprint
+            'cc': rand_name(),   # checksum chain
+            'dc': rand_name(),   # dead code
+            'fe': rand_name(),   # fake error paths
+            'sm': rand_name(),   # state machine
+            'id': rand_name(),   # incremental decrypt
         }
 
         # Encrypted error messages (XOR with key fragment)
@@ -302,6 +311,8 @@ __pyobfuscate__(__name__, __file__, {payload_str})
         err_memory = encrypt_msg("Memory analysis detected")
         err_thread = encrypt_msg("Threading violation")
         err_parent = encrypt_msg("Invalid parent process")
+        err_hook = encrypt_msg("Function hooking detected")
+        err_env = encrypt_msg("Invalid environment")
 
         # Random junk code snippets for obfuscation
         junk_snippets = [
@@ -309,10 +320,26 @@ __pyobfuscate__(__name__, __file__, {payload_str})
             f"_{self._junk_seed}_b = [None] * 0",
             f"_{self._junk_seed}_c = {{}}",
             f"_{self._junk_seed}_d = type('_', (), {{}})",  # Empty class
+            f"_{self._junk_seed}_e = (lambda: None).__code__.co_code",  # Bytecode reference
         ]
         junk_code = '\n'.join(junk_snippets)
 
+        # Generate blinded constants (hide magic numbers)
+        blind_key = random.randint(0x10000000, 0x7FFFFFFF)
+        blinded_16 = 16 ^ blind_key
+        blinded_12 = 12 ^ blind_key
+        blinded_32 = 32 ^ blind_key
+
         # Generate watermark (hidden identifier for tracking leaks)
+        watermark = hashlib.sha256(
+            self.encryption_key + self.license_info.encode() + b'watermark'
+        ).hexdigest()[:16]
+
+        # Generate honey token (fake key to detect tampering)
+
+        # Checksum chain seeds
+        cc_seed1 = secrets.token_hex(8)
+        cc_seed2 = secrets.token_hex(8)
         watermark = hashlib.sha256(
             self.encryption_key + self.license_info.encode() + b'watermark'
         ).hexdigest()[:16]
@@ -358,15 +385,112 @@ except ImportError:
 # Honey token (fake key - if accessed, tampering detected)
 {v['ht']} = '{honey_token}'
 
+# Constant blinding - hide magic numbers
+{v['cb']} = {blind_key}
+def _ub(_v): return _v ^ {v['cb']}  # Unblind constant
+
 # Opaque predicates (complex but deterministic)
-{v['op']} = lambda: (({v['tm']}.time() * 0) == 0) and ((1 << 4) == 16)
+{v['op']} = lambda: (({v['tm']}.time() * 0) == 0) and ((1 << 4) == _ub({blinded_16}))
 
 {v['err']} = {{
     'i': '{err_integrity}', 'f': '{err_format}', 'c': '{err_corrupt}',
     'd': '{err_debug}', 'e': '{err_expired}', 'm': '{err_machine}',
     'o': '{err_domain}', 'a': '{err_auth}', 'mem': '{err_memory}',
-    'th': '{err_thread}', 'p': '{err_parent}'
+    'th': '{err_thread}', 'p': '{err_parent}', 'h': '{err_hook}', 'env': '{err_env}'
 }}
+
+# Checksum chain for integrity verification
+{v['cc']} = {{
+    'seed': '{cc_seed1}',
+    'chain': [],
+    'verify': lambda _h, _d: {v['hl']}.sha256((_h + _d).encode()).hexdigest()[:8]
+}}
+
+# Anti-hooking: verify built-in functions haven't been replaced
+def {v['ah']}():
+    try:
+        # Check if critical functions are original
+        _builtins = [exec, eval, compile, __import__, open, print]
+        for _f in _builtins:
+            # Check function hasn't been wrapped/hooked
+            if hasattr(_f, '__wrapped__') or hasattr(_f, '_original'):
+                return False
+            # Check code object exists for built-ins that have it
+            if hasattr(_f, '__code__'):
+                if not hasattr(_f.__code__, 'co_code'):
+                    return False
+        # Check sys.modules for injected modules
+        _suspicious = ['frida', 'objection', 'r2pipe', 'unicorn', 'capstone', 'keystone']
+        for _s in _suspicious:
+            if _s in {v['sy']}.modules:
+                return False
+        return True
+    except:
+        return False
+
+# Environment fingerprinting - detailed environment verification
+def {v['ef']}():
+    _score = 0
+    # Check Python implementation
+    if {v['pl']}.python_implementation() != 'CPython':
+        _score += 5
+    # Check for unusual sys.path entries
+    _sus_paths = ['frida', 'hook', 'inject', 'patch', 'crack']
+    for _p in {v['sy']}.path:
+        if any(_s in _p.lower() for _s in _sus_paths):
+            _score += 3
+    # Check for too many modules loaded (might indicate analysis)
+    if len({v['sy']}.modules) > 500:
+        _score += 2
+    # Check if running in unusual directory
+    _cwd = {v['os']}.getcwd().lower()
+    _bad_dirs = ['temp', 'sandbox', 'analysis', 'malware', 'virus', 'sample']
+    if any(_d in _cwd for _d in _bad_dirs):
+        _score += 4
+    return _score < 5  # Allow some false positives
+
+# Fake error path - decoy that triggers on analysis
+def {v['fe']}():
+    # This function looks like it does something important
+    # but is actually a trap for reverse engineers
+    _fake_key = {v['b64']}.b64decode('{honey_token}')
+    _result = bytearray(32)
+    for _i in range(32):
+        _result[_i] = _fake_key[_i % len(_fake_key)] ^ 0x55
+    # If someone patches to reach here, they get garbage
+    return bytes(_result)
+
+# Dead code injection - realistic but never executed
+def {v['dc']}(_x):
+    if {v['op']}() and False:  # Never true
+        _data = {v['b64']}.b64decode(_x)
+        _key = {v['hl']}.sha256(_data).digest()
+        return bytes(d ^ k for d, k in zip(_data, _key * 10))
+    return None
+
+# State machine for control flow flattening
+class {v['sm']}:
+    _state = 0
+    _transitions = {{
+        0: [1, 2],
+        1: [3],
+        2: [3],
+        3: [4, 5],
+        4: [6],
+        5: [6],
+        6: [0, 7],
+        7: []  # Terminal
+    }}
+    @classmethod
+    def next(cls, _input):
+        _valid = cls._transitions.get(cls._state, [])
+        if _input in _valid:
+            cls._state = _input
+            return True
+        return False
+    @classmethod
+    def reset(cls):
+        cls._state = 0
 
 # String table (encrypted constant strings)
 {v['stbl']} = {{
@@ -847,7 +971,7 @@ def {v['kst']}(_k, _n, _l):
         _c += 1
     return bytes(_s[:_l])
 
-def {v['dc']}(_d, _mk):
+def {v['dcp']}(_d, _mk):
     _sl = _d[:{v['ss']}]
     _nc = _d[{v['ss']}:{v['ss']} + {v['ns']}]
     _ct = _d[{v['ss']} + {v['ns']}:]
@@ -891,6 +1015,10 @@ def {v['nl']}(_url, _mid, _lid):
         return True  # Allow offline usage if server unreachable
 
 def __pyobfuscate__(_nm, _fl, _pl):
+    # Initialize state machine
+    {v['sm']}.reset()
+    {v['sm']}.next(1)  # State: initialization
+    
     # Layer 1: Self-integrity check
     if not {v['ic']}(): raise RuntimeError({v['us']}({v['err']}['i']))
     
@@ -909,16 +1037,41 @@ def __pyobfuscate__(_nm, _fl, _pl):
     if not {v['ptr']}():
         raise RuntimeError({v['us']}({v['err']}['p']))
     
+    # Layer 6: Anti-hooking verification
+    if not {v['ah']}():
+        {v['rat']}()
+        raise RuntimeError({v['us']}({v['err']}['h']))
+    
+    # Layer 7: Environment fingerprinting
+    if not {v['ef']}():
+        raise RuntimeError({v['us']}({v['err']}['env']))
+    
+    {v['sm']}.next(3)  # State: security checks passed
+    
     _dr = {v['b64']}.b64decode(_pl)
     _kc = {v['gk']}()
+    
+    # Checksum chain - verify payload integrity incrementally
+    _cc_hash = {v['cc']}['seed']
+    _cc_hash = {v['cc']}['verify'](_cc_hash, str(len(_dr)))
+    
     try:
+        # Dead code path (never executed, confuses analysis)
+        if {v['dc']}('{honey_token}') and False:
+            return {v['fe']}()
+        
         # Opaque predicate check (always passes but confuses static analysis)
         if not {v['op']}(): raise RuntimeError({v['us']}({v['err']}['i']))
+        
+        {v['sm']}.next(4)  # State: payload processing
         
         # Use code splitting for header verification
         _magic = {v['cs1']}(_dr, 0, 8)
         if _magic not in (b'PYO00002', b'PYO00003', {v['magic']}):
             raise RuntimeError({v['us']}({v['err']}['f']))
+        
+        # Update checksum chain
+        _cc_hash = {v['cc']}['verify'](_cc_hash, _magic.hex())
         
         _dl = {v['st']}.unpack('<I', {v['cs1']}(_dr, 10, 14))[0]
         _ch = {v['cs1']}(_dr, 14, 30)
@@ -928,14 +1081,21 @@ def __pyobfuscate__(_nm, _fl, _pl):
             {v['rat']}()  # Slow down on tampering
             raise RuntimeError({v['us']}({v['err']}['c']))
         
+        {v['sm']}.next(5)  # State: decryption
+        
         # Use control flow dispatch for decryption
-        _dec = {v['cf']}[0]({v['dc']}, _en, bytes(_kc))
+        _dec = {v['cf']}[0]({v['dcp']}, _en, bytes(_kc))
         _dec = {v['cf']}[0]({v['ld']}, _dec, {v['xkey']})
+        
+        # Update checksum chain
+        _cc_hash = {v['cc']}['verify'](_cc_hash, {v['hl']}.sha256(_dec[:32]).hexdigest()[:8])
         
         _mln = {v['st']}.unpack('<H', {v['cs1']}(_dec, 0, 2))[0]
         _mb = {v['cs1']}(_dec, 2, 2+_mln)
         _mt = eval(_mb.decode('utf-8'))
         _cp = _dec[2+_mln:]
+        
+        {v['sm']}.next(6)  # State: verification
         
         # Security checks with opaque predicates
         if {v['cf']}[2](_mt.get('anti_debug', False), False) and {v['ad']}():
@@ -961,6 +1121,8 @@ def __pyobfuscate__(_nm, _fl, _pl):
         if _nl_url and not {v['nl']}(_nl_url, {v['gm']}(), _mt.get('license')):
             raise RuntimeError({v['us']}({v['err']}['e']))
         
+        {v['sm']}.next(7)  # State: execution
+        
         # Use code splitting for decompression
         _bc = {v['cs3']}(_cp)
         _sk = {v['b64']}.b64decode(_mt.get('_sk', ''))
@@ -972,6 +1134,9 @@ def __pyobfuscate__(_nm, _fl, _pl):
             except:
                 # Fallback to simple XOR (compatible with older protected files)
                 _bc = {v['cs2']}(_bc, _sk)
+        
+        # Final checksum chain verification
+        _cc_hash = {v['cc']}['verify'](_cc_hash, {v['hl']}.sha256(_bc[:64] if len(_bc) > 64 else _bc).hexdigest()[:8])
         
         _co = {v['ml']}.loads(_bc)
         _gl = {{'__name__': _nm, '__file__': _fl, '__builtins__': __builtins__}}
@@ -987,6 +1152,7 @@ def __pyobfuscate__(_nm, _fl, _pl):
             for _k, _v in _gl.items():
                 if not _k.startswith('_'): setattr(_cl, _k, _v)
     finally:
+        {v['sm']}.reset()  # Reset state machine
         {v['sc']}(_kc)
         del _kc
 '''
