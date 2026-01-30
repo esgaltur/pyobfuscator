@@ -1,5 +1,11 @@
 # PyObfuscate
 
+[![CI](https://github.com/esgaltur/pyobfuscator/actions/workflows/ci.yml/badge.svg)](https://github.com/esgaltur/pyobfuscator/actions/workflows/ci.yml)
+[![PyPI version](https://badge.fury.io/py/pyobfuscate.svg)](https://badge.fury.io/py/pyobfuscate)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Security: 50+ Features](https://img.shields.io/badge/Security-50%2B%20Features-green.svg)](https://github.com/esgaltur/pyobfuscator#features)
+
 A comprehensive, license-free Python code obfuscation library with enterprise-grade runtime protection.
 
 ## Features

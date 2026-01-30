@@ -39,9 +39,11 @@ all = ["cryptography>=41.0.0", "cython>=3.0.0"]
 pyobfuscate = "pyobfuscate.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/esgaltur/pyobfuscate"
-Documentation = "https://github.com/esgaltur/pyobfuscate#readme"
-Repository = "https://github.com/esgaltur/pyobfuscate"
+Homepage = "https://github.com/esgaltur/pyobfuscator"
+Documentation = "https://github.com/esgaltur/pyobfuscator#readme"
+Repository = "https://github.com/esgaltur/pyobfuscator"
+Issues = "https://github.com/esgaltur/pyobfuscator/issues"
+Changelog = "https://github.com/esgaltur/pyobfuscator/releases"
 
 [tool.setuptools.packages.find]
 where = ["."]
