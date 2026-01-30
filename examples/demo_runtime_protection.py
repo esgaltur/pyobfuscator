@@ -1,5 +1,5 @@
 """
-Demo of PyArmor-style runtime protection with advanced security features.
+Demo of runtime protection with advanced security features.
 
 Features demonstrated:
 - AES-256-GCM encryption
@@ -66,7 +66,7 @@ if __name__ == "__main__":
 '''
 
     print("=" * 70)
-    print("PyArmor-Style Runtime Protection Demo (v3 - Advanced)")
+    print("Runtime Protection Demo (v3 - Advanced)")
     print("=" * 70)
 
     # Get current machine ID for demonstration

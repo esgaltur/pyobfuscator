@@ -1,6 +1,6 @@
 # PyObfuscate
 
-A lightweight, license-free Python code obfuscation library with PyArmor-style runtime protection.
+A lightweight, license-free Python code obfuscation library with advanced runtime protection.
 
 ## Features
 
@@ -9,7 +9,7 @@ A lightweight, license-free Python code obfuscation library with PyArmor-style r
 - **Code Compression**: Optionally compresses code into a single exec() statement
 - **Docstring Removal**: Removes docstrings to reduce code size and readability
 - **Comment Removal**: Comments are automatically removed during AST processing
-- **Runtime Protection**: PyArmor-style encrypted bytecode with runtime decryption
+- **Runtime Protection**: Encrypted bytecode with runtime decryption
 - **PYD Compilation**: Compile runtime to .pyd (C extension) for maximum protection
 - **Strong Encryption**: AES-256-GCM with PBKDF2 key derivation (100,000 iterations)
 - **Configurable**: Fine-tune what gets obfuscated and what remains readable
@@ -38,7 +38,7 @@ pyobfuscate/
 ├── __main__.py           # CLI entry point
 ├── cli.py                # Command-line interface
 ├── obfuscator.py         # Core AST-based obfuscation
-├── runtime_protection.py # PyArmor-style runtime protection
+├── runtime_protection.py # Runtime protection with encryption
 ├── pyd_protection.py     # PYD (Cython-compiled) runtime protection
 ├── transformers.py       # Advanced AST transformers
 ├── utils.py              # Utility functions
@@ -186,7 +186,7 @@ def _zX9pD():
     print(f'{__import__("base64").b64decode("RmluYWwgcHJpY2U6ICQ=").decode("utf-8")}{_cU6rH:.2f}')
 ```
 
-### After PYD Protection (PyArmor-style)
+### After PYD Protection (Encrypted Runtime)
 
 ```python
 # PyObfuscate 1.0.0 (PYD), abc123, Protected, 2026-01-30
@@ -227,18 +227,19 @@ python pyobfuscate/tests.py
 - Does not obfuscate attribute names (could break external API calls)
 - Some Python features like decorators may need excluded names
 - f-strings with complex expressions may not obfuscate perfectly
-- Does not provide runtime protection (bytecode can still be analyzed)
+- Pure Python runtime can be reverse-engineered (use PYD compilation for stronger protection)
 
-## Comparison with PyArmor
+## Comparison with Commercial Solutions
 
-| Feature | PyObfuscate | PyArmor |
-|---------|-------------|---------|
-| License | Free | Paid for full features |
+| Feature | PyObfuscate | Commercial Tools |
+|---------|-------------|------------------|
+| License | Free & Open Source | Paid |
 | Name obfuscation | ✓ | ✓ |
 | String obfuscation | ✓ | ✓ |
 | Code compression | ✓ | ✓ |
-| Runtime protection | ✗ | ✓ |
-| License binding | ✗ | ✓ |
+| Runtime protection | ✓ | ✓ |
+| License expiration | ✓ | ✓ |
+| Machine binding | ✓ | ✓ |
 | Python 3.13+ | ✓ | Limited |
 
-PyObfuscate is a simpler alternative that provides source-code level obfuscation without the licensing restrictions.
+PyObfuscate provides enterprise-grade protection without licensing restrictions.

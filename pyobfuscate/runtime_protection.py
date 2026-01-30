@@ -1,5 +1,5 @@
 """
-Runtime Protection Module - Similar to PyArmor's approach.
+Runtime Protection Module for PyObfuscate.
 
 This creates encrypted Python files that require a runtime module to execute.
 The code is compiled to bytecode, encrypted, and wrapped in a loader.
@@ -31,7 +31,7 @@ from .crypto import CryptoEngine, get_machine_id
 
 class RuntimeProtector:
     """
-    Creates PyArmor-style protected Python files.
+    Creates protected Python files with encrypted bytecode.
 
     The protection works by:
     1. Compiling source to bytecode
@@ -159,7 +159,7 @@ class RuntimeProtector:
         """Create the protected Python file content."""
         timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
-        # Break payload into chunks for readability (like PyArmor does)
+        # Break payload into chunks for readability
         chunk_size = 76
         payload_lines = [encoded_payload[i:i+chunk_size]
                         for i in range(0, len(encoded_payload), chunk_size)]
