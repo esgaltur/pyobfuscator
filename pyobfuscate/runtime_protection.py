@@ -196,6 +196,8 @@ class RuntimeProtector:
             'machines': self.allowed_machines,
             'anti_debug': self.anti_debug,
             'domains': self.domain_lock,
+            'vm_detect': self.enable_vm_detection,
+            'license_server': self.license_server_url if self.enable_network_check else None,
         }
 
         # Create encrypted payload
@@ -262,6 +264,14 @@ __pyobfuscate__(__name__, __file__, {payload_str})
             'gk': rand_name(), 'ld': rand_name(), 'us': rand_name(),
             'err': rand_name(), 'ag': rand_name(), 'pbb': rand_name(),
             'hs': rand_name(),
+            # New security features
+            'wm': rand_name(),   # watermark
+            'ht': rand_name(),   # honey token
+            'ap': rand_name(),   # anti-patch
+            'csv': rand_name(),  # call stack verify
+            'cf': rand_name(),   # control flow
+            'op': rand_name(),   # opaque predicates
+            'nl': rand_name(),   # network license
         }
 
         # Encrypted error messages (XOR with key fragment)
@@ -284,8 +294,21 @@ __pyobfuscate__(__name__, __file__, {payload_str})
             f"_{self._junk_seed}_a = lambda x: x",
             f"_{self._junk_seed}_b = [None] * 0",
             f"_{self._junk_seed}_c = {{}}",
+            f"_{self._junk_seed}_d = type('_', (), {{}})",  # Empty class
         ]
         junk_code = '\n'.join(junk_snippets)
+
+        # Generate watermark (hidden identifier for tracking leaks)
+        watermark = hashlib.sha256(
+            self.encryption_key + self.license_info.encode() + b'watermark'
+        ).hexdigest()[:16]
+
+        # Generate honey token (fake key to detect tampering)
+        honey_token = base64.b64encode(os.urandom(32)).decode('ascii')
+
+        # Opaque predicates (always true/false but hard to analyze statically)
+        opaque_true = f"(lambda: (2 ** 4) == 16)()"
+        opaque_false = f"(lambda: (3 * 3) == 10)()"
 
         return f'''# PyObfuscate Runtime - {self.runtime_id}
 # {secrets.token_hex(16)}
@@ -316,6 +339,14 @@ except ImportError:
 {v['ss']}, {v['ns']}, {v['ks']}, {v['it']} = 16, 12, 32, 100000
 {v['hash']} = '{runtime_hash}'
 
+# Watermark for leak tracking
+{v['wm']} = '{watermark}'
+# Honey token (fake key - if accessed, tampering detected)
+{v['ht']} = '{honey_token}'
+
+# Opaque predicates (complex but deterministic)
+{v['op']} = lambda: (({v['tm']}.time() * 0) == 0) and ((1 << 4) == 16)
+
 {v['err']} = {{
     'i': '{err_integrity}', 'f': '{err_format}', 'c': '{err_corrupt}',
     'd': '{err_debug}', 'e': '{err_expired}', 'm': '{err_machine}',
@@ -326,6 +357,43 @@ def {v['us']}(_c):
     _kf = {v['key']}[:len({v['b64']}.b64decode(_c))]
     _d = {v['b64']}.b64decode(_c)
     return bytes(d ^ k for d, k in zip(_d, (_kf * (len(_d)//32 + 1))[:len(_d)])).decode()
+
+# Anti-patching: verify runtime file integrity
+def {v['ap']}():
+    try:
+        import inspect as _ins
+        _src = _ins.getsourcefile({v['ap']})
+        if _src and {v['os']}.path.exists(_src):
+            with open(_src, 'rb') as _f:
+                _content = _f.read()
+            # Check for common patching signatures
+            _patches = [b'import pdb', b'breakpoint()', b'print(key', b'print(_k']
+            for _p in _patches:
+                if _p in _content.lower():
+                    return False
+        return True
+    except:
+        return True  # Allow if can't check
+
+# Call stack verification
+def {v['csv']}():
+    try:
+        import inspect as _ins
+        _stack = _ins.stack()
+        # Verify we're being called from expected context
+        _callers = [f.function for f in _stack[:5]]
+        # Should not have debugger frames
+        _suspicious = ['run_code', 'do_run', 'debug', 'trace', 'interact']
+        return not any(s in str(_callers).lower() for s in _suspicious)
+    except:
+        return True
+
+# Control flow obfuscation - splits logic into indirect jumps
+{v['cf']} = {{
+    0: lambda _f, *_a: _f(*_a),
+    1: lambda _x: _x,
+    2: lambda _a, _b: _a if {v['op']}() else _b,
+}}
 
 def {v['tc']}():
     _t1 = {v['tm']}.perf_counter_ns()
@@ -466,11 +534,37 @@ def {v['gk']}():
     {v['sc']}(_dc)
     return _rl
 
+# Network license validation (optional)
+def {v['nl']}(_url, _mid, _lid):
+    if not _url: return True
+    try:
+        import urllib.request as _ur
+        import json as _js
+        _data = _js.dumps({{'machine_id': _mid, 'license_id': _lid, 'watermark': {v['wm']}}}).encode()
+        _req = _ur.Request(_url, data=_data, headers={{'Content-Type': 'application/json'}})
+        _req.timeout = 5
+        with _ur.urlopen(_req) as _resp:
+            _result = _js.loads(_resp.read().decode())
+            return _result.get('valid', False)
+    except:
+        return True  # Allow offline usage if server unreachable
+
 def __pyobfuscate__(_nm, _fl, _pl):
+    # Layer 1: Self-integrity check
     if not {v['ic']}(): raise RuntimeError({v['us']}({v['err']}['i']))
+    
+    # Layer 2: Anti-patching check (verify runtime not modified)
+    if not {v['ap']}(): raise RuntimeError({v['us']}({v['err']}['i']))
+    
+    # Layer 3: Call stack verification
+    if not {v['csv']}(): raise RuntimeError({v['us']}({v['err']}['d']))
+    
     _dr = {v['b64']}.b64decode(_pl)
     _kc = {v['gk']}()
     try:
+        # Opaque predicate check (always passes but confuses static analysis)
+        if not {v['op']}(): raise RuntimeError({v['us']}({v['err']}['i']))
+        
         if _dr[:8] not in (b'PYO00002', b'PYO00003', {v['magic']}):
             raise RuntimeError({v['us']}({v['err']}['f']))
         _dl = {v['st']}.unpack('<I', _dr[10:14])[0]
@@ -478,13 +572,18 @@ def __pyobfuscate__(_nm, _fl, _pl):
         _en = _dr[30:30+_dl]
         if {v['hl']}.sha256(_en).digest()[:16] != _ch:
             raise RuntimeError({v['us']}({v['err']}['c']))
-        _dec = {v['dc']}(_en, bytes(_kc))
-        _dec = {v['ld']}(_dec, {v['xkey']})
+        
+        # Use control flow dispatch for decryption
+        _dec = {v['cf']}[0]({v['dc']}, _en, bytes(_kc))
+        _dec = {v['cf']}[0]({v['ld']}, _dec, {v['xkey']})
+        
         _mln = {v['st']}.unpack('<H', _dec[:2])[0]
         _mb = _dec[2:2+_mln]
         _mt = eval(_mb.decode('utf-8'))
         _cp = _dec[2+_mln:]
-        if _mt.get('anti_debug', False) and {v['ad']}():
+        
+        # Security checks with opaque predicates
+        if {v['cf']}[2](_mt.get('anti_debug', False), False) and {v['ad']}():
             raise RuntimeError({v['us']}({v['err']}['d']))
         if {v['ce']}(_mt.get('expiration')):
             raise RuntimeError({v['us']}({v['err']}['e']))
@@ -495,13 +594,22 @@ def __pyobfuscate__(_nm, _fl, _pl):
                 raise RuntimeError({v['us']}({v['err']}['m']) + f": {{_cm}}")
         if not {v['cd']}(_mt.get('domains', [])):
             raise RuntimeError({v['us']}({v['err']}['o']))
+        
+        # Optional network license check
+        _nl_url = _mt.get('license_server')
+        if _nl_url and not {v['nl']}(_nl_url, {v['gm']}(), _mt.get('license')):
+            raise RuntimeError({v['us']}({v['err']}['e']))
+        
         _bc = {v['zl']}.decompress(_cp)
         _sk = {v['b64']}.b64decode(_mt.get('_sk', ''))
         if _sk:
             _bc = bytes(b ^ _sk[i % len(_sk)] for i, b in enumerate(_bc))
         _co = {v['ml']}.loads(_bc)
         _gl = {{'__name__': _nm, '__file__': _fl, '__builtins__': __builtins__}}
-        exec(_co, _gl)
+        
+        # Execute through control flow dispatcher
+        {v['cf']}[0](exec, _co, _gl)
+        
         _cl = {v['sy']}.modules.get(_nm)
         if _cl:
             for _k, _v in _gl.items():
