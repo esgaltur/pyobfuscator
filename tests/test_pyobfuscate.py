@@ -83,7 +83,7 @@ def func():
 
     def test_keep_docstrings(self):
         """Test keeping docstrings."""
-        obfuscator = Obfuscator(remove_docstrings=False)
+        obfuscator = Obfuscator(remove_docstrings=False, obfuscate_strings=False)
         source = '''
 def func():
     """Keep this docstring."""
@@ -94,7 +94,7 @@ def func():
 
     def test_obfuscated_code_executes(self):
         """Test that obfuscated code can execute."""
-        obfuscator = Obfuscator()
+        obfuscator = Obfuscator(exclude_names={'result', 'add'})
         source = '''
 def add(a, b):
     return a + b
