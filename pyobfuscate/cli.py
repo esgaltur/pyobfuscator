@@ -14,7 +14,7 @@ from .obfuscator import Obfuscator
 def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
-        prog='pyobfuscate',
+        prog='pyobfuscator',
         description='Obfuscate Python source code',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
@@ -95,9 +95,9 @@ Examples:
 
     parser.add_argument(
         '--string-method',
-        choices=['base64', 'hex', 'xor'],
-        default='base64',
-        help='Method for string obfuscation (default: base64)'
+        choices=['xor', 'hex', 'base64'],
+        default='xor',
+        help='Method for string obfuscation (default: xor). Note: base64/hex are encoding only, xor provides actual obfuscation'
     )
 
     parser.add_argument(
@@ -129,19 +129,9 @@ Examples:
     return parser.parse_args(args)
 
 
-def main(args: Optional[List[str]] = None) -> int:
-    """Main entry point for the CLI."""
-    parsed = parse_args(args)
-
-    input_path = Path(parsed.input)
-    output_path = Path(parsed.output)
-
-    if not input_path.exists():
-        print(f"Error: Input path does not exist: {input_path}", file=sys.stderr)
-        return 1
-
-    # Create the obfuscator with options
-    obfuscator = Obfuscator(
+def _create_obfuscator(parsed: argparse.Namespace) -> Obfuscator:
+    """Create an Obfuscator instance from parsed arguments."""
+    return Obfuscator(
         rename_variables=not parsed.no_rename_vars,
         rename_functions=not parsed.no_rename_funcs,
         rename_classes=not parsed.no_rename_classes,
@@ -153,41 +143,77 @@ def main(args: Optional[List[str]] = None) -> int:
         exclude_names=set(parsed.exclude)
     )
 
+
+def _obfuscate_single_file(
+    obfuscator: Obfuscator,
+    input_path: Path,
+    output_path: Path,
+    verbose: bool
+) -> int:
+    """Obfuscate a single file. Returns exit code."""
+    if verbose:
+        print(f"Obfuscating {input_path}...")
+
+    obfuscator.obfuscate_file(input_path, output_path)
+
+    if verbose:
+        print(f"Output written to {output_path}")
+    print("Obfuscation complete!")
+    return 0
+
+
+def _obfuscate_directory(
+    obfuscator: Obfuscator,
+    input_path: Path,
+    output_path: Path,
+    parsed: argparse.Namespace
+) -> int:
+    """Obfuscate a directory. Returns exit code."""
+    if parsed.verbose:
+        print(f"Obfuscating directory {input_path}...")
+
+    recursive = parsed.recursive and not parsed.no_recursive
+    results = obfuscator.obfuscate_directory(
+        input_path,
+        output_path,
+        recursive=recursive,
+        exclude_patterns=parsed.exclude_patterns
+    )
+
+    success_count = sum(1 for v in results.values() if v == "success")
+    error_count = len(results) - success_count
+
+    if parsed.verbose:
+        for file_path, result in results.items():
+            status = "✓" if result == "success" else "✗"
+            print(f"  {status} {file_path}: {result}")
+
+    print(f"Obfuscation complete! {success_count} files processed, {error_count} errors")
+    return 1 if error_count > 0 else 0
+
+
+def main(args: Optional[List[str]] = None) -> int:
+    """Main entry point for the CLI."""
+    parsed = parse_args(args)
+
+    input_path = Path(parsed.input)
+    output_path = Path(parsed.output)
+
+    if not input_path.exists():
+        print(f"Error: Input path does not exist: {input_path}", file=sys.stderr)
+        return 1
+
+    obfuscator = _create_obfuscator(parsed)
+
     try:
         if input_path.is_file():
-            if parsed.verbose:
-                print(f"Obfuscating {input_path}...")
-
-            obfuscator.obfuscate_file(input_path, output_path)
-
-            if parsed.verbose:
-                print(f"Output written to {output_path}")
-            print("Obfuscation complete!")
-
-        elif input_path.is_dir():
-            if parsed.verbose:
-                print(f"Obfuscating directory {input_path}...")
-
-            recursive = parsed.recursive and not parsed.no_recursive
-            results = obfuscator.obfuscate_directory(
-                input_path,
-                output_path,
-                recursive=recursive,
-                exclude_patterns=parsed.exclude_patterns
+            return _obfuscate_single_file(
+                obfuscator, input_path, output_path, parsed.verbose
             )
-
-            success_count = sum(1 for v in results.values() if v == "success")
-            error_count = len(results) - success_count
-
-            if parsed.verbose:
-                for file_path, result in results.items():
-                    status = "✓" if result == "success" else "✗"
-                    print(f"  {status} {file_path}: {result}")
-
-            print(f"Obfuscation complete! {success_count} files processed, {error_count} errors")
-
-            if error_count > 0:
-                return 1
+        elif input_path.is_dir():
+            return _obfuscate_directory(
+                obfuscator, input_path, output_path, parsed
+            )
         else:
             print(f"Error: Input path is neither a file nor directory: {input_path}", file=sys.stderr)
             return 1
@@ -196,7 +222,6 @@ def main(args: Optional[List[str]] = None) -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
-    return 0
 
 
 if __name__ == '__main__':

@@ -116,8 +116,8 @@ class TestRuntimeProtector:
         source = 'x = 42'
         protected, runtime = protector.protect_source(source)
 
-        assert '__pyobfuscate__' in protected
-        assert 'pyobfuscate_runtime_' in protected
+        assert '__pyobfuscator__' in protected
+        assert 'pyobfuscator_runtime_' in protected
         assert len(runtime) > 0
 
     def test_machine_id(self):
@@ -147,7 +147,7 @@ class TestRuntimeProtector:
         source = 'print("hello")'
         protected, _ = protector.protect_source(source, "test.py")
 
-        assert 'PyObfuscate' in protected
+        assert 'PyObfuscator' in protected
         assert 'Test License' in protected
         assert 'import' in protected
 

@@ -58,10 +58,11 @@ class RuntimeProtector:
 
     MAGIC = b'PYO00004'  # Magic header (v4 = advanced protection)
     VERSION = b'\x00\x04'
+    DEFAULT_FILENAME = '<protected>'  # Default filename for protected code
 
     def __init__(
         self,
-        license_info: str = "PyObfuscate Runtime Protection",
+        license_info: str = "PyObfuscator Runtime Protection",
         encryption_key: Optional[bytes] = None,
         expiration_date: Optional[datetime] = None,
         allowed_machines: Optional[List[str]] = None,
@@ -119,8 +120,10 @@ class RuntimeProtector:
         """Generate a unique runtime identifier."""
         return hashlib.md5(self.encryption_key).hexdigest()[:6]
 
-    def _compile_source(self, source: str, filename: str = '<protected>') -> bytes:
+    def _compile_source(self, source: str, filename: str = None) -> bytes:
         """Compile Python source to bytecode."""
+        if filename is None:
+            filename = self.DEFAULT_FILENAME
         code = compile(source, filename, 'exec')
         return marshal.dumps(code)
 
@@ -177,13 +180,16 @@ class RuntimeProtector:
 
         return self.MAGIC + self.VERSION + data_len + checksum + encrypted
 
-    def protect_source(self, source: str, filename: str = '<protected>') -> Tuple[str, str]:
+    def protect_source(self, source: str, filename: str = None) -> Tuple[str, str]:
         """
         Protect Python source code.
 
         Returns:
             Tuple of (protected_code, runtime_module_code)
         """
+        if filename is None:
+            filename = self.DEFAULT_FILENAME
+
         # Compile to bytecode
         bytecode = self._compile_source(source, filename)
 
@@ -218,16 +224,15 @@ class RuntimeProtector:
     def _create_protected_file(self, encoded_payload: str, filename: str) -> str:
         """Create the protected Python file content."""
         timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        # Sanitize filename for comment (remove path, keep basename)
+        safe_filename = Path(filename).name if filename else self.DEFAULT_FILENAME
 
-        # Break payload into chunks for readability
-        chunk_size = 76
-        payload_lines = [encoded_payload[i:i+chunk_size]
-                        for i in range(0, len(encoded_payload), chunk_size)]
         payload_str = "b'" + encoded_payload + "'"
 
-        return f'''# PyObfuscate 1.0.0, {self.runtime_id}, {self.license_info}, {timestamp}
-from pyobfuscate_runtime_{self.runtime_id} import __pyobfuscate__
-__pyobfuscate__(__name__, __file__, {payload_str})
+        return f'''# PyObfuscator 1.0.0, {self.runtime_id}, {self.license_info}, {timestamp}
+# Source: {safe_filename}
+from pyobfuscator_runtime_{self.runtime_id} import __pyobfuscator__
+__pyobfuscator__(__name__, __file__, {payload_str})
 '''
 
     def _create_runtime_module(self) -> str:
@@ -275,7 +280,7 @@ __pyobfuscate__(__name__, __file__, {payload_str})
             'nl': rand_name(),   # network license
             # New advanced features
             'amd': rand_name(),  # anti-memory dump
-            'ih': rand_name(),   # import hook
+            'ih': rand_name(),   # imported hook
             'stbl': rand_name(), # string table
             'cs1': rand_name(),  # code split 1
             'cs2': rand_name(),  # code split 2
@@ -328,31 +333,20 @@ __pyobfuscate__(__name__, __file__, {payload_str})
         # Generate blinded constants (hide magic numbers)
         blind_key = random.randint(0x10000000, 0x7FFFFFFF)
         blinded_16 = 16 ^ blind_key
-        blinded_12 = 12 ^ blind_key
-        blinded_32 = 32 ^ blind_key
 
         # Generate watermark (hidden identifier for tracking leaks)
         watermark = hashlib.sha256(
             self.encryption_key + self.license_info.encode() + b'watermark'
         ).hexdigest()[:16]
 
-        # Generate honey token (fake key to detect tampering)
-
         # Checksum chain seeds
         cc_seed1 = secrets.token_hex(8)
-        cc_seed2 = secrets.token_hex(8)
-        watermark = hashlib.sha256(
-            self.encryption_key + self.license_info.encode() + b'watermark'
-        ).hexdigest()[:16]
 
         # Generate honey token (fake key to detect tampering)
         honey_token = base64.b64encode(os.urandom(32)).decode('ascii')
 
-        # Opaque predicates (always true/false but hard to analyze statically)
-        opaque_true = f"(lambda: (2 ** 4) == 16)()"
-        opaque_false = f"(lambda: (3 * 3) == 10)()"
 
-        return f'''# PyObfuscate Runtime - {self.runtime_id}
+        return f'''# PyObfuscator Runtime - {self.runtime_id}
 # {secrets.token_hex(16)}
 import base64 as {v['b64']}
 import hashlib as {v['hl']}
@@ -1015,7 +1009,7 @@ def {v['nl']}(_url, _mid, _lid):
     except:
         return True  # Allow offline usage if server unreachable
 
-def __pyobfuscate__(_nm, _fl, _pl):
+def __pyobfuscator__(_nm, _fl, _pl):
     # Initialize state machine
     {v['sm']}.reset()
     {v['sm']}.next(1)  # State: initialization
@@ -1195,12 +1189,40 @@ def __pyobfuscate__(_nm, _fl, _pl):
 
         # Write runtime module
         if create_runtime:
-            runtime_path = output_dir / f'pyobfuscate_runtime_{self.runtime_id}.py'
+            runtime_path = output_dir / f'pyobfuscator_runtime_{self.runtime_id}.py'
             with open(runtime_path, 'w', encoding='utf-8') as f:
                 f.write(runtime)
             result['runtime'] = runtime_path
 
         return result
+
+    def _should_skip_file(self, relative_path: Path, filename: str, exclude_patterns: list) -> bool:
+        """Check if a file should be skipped based on exclude patterns."""
+        import fnmatch
+        for pattern in exclude_patterns:
+            if fnmatch.fnmatch(str(relative_path), pattern):
+                return True
+            if fnmatch.fnmatch(filename, pattern):
+                return True
+        return False
+
+    def _copy_runtime_to_output(
+        self,
+        file_result: Dict[str, Any],
+        output_dir: Path,
+        results: Dict[str, Any]
+    ) -> bool:
+        """Copy runtime file to output directory. Returns True if copied."""
+        if 'runtime' not in file_result:
+            return False
+
+        import shutil
+        runtime_name = f'pyobfuscator_runtime_{self.runtime_id}.py'
+        runtime_dest = output_dir / runtime_name
+        if file_result['runtime'] != runtime_dest:
+            shutil.copy2(file_result['runtime'], runtime_dest)
+        results['runtime'] = runtime_dest
+        return True
 
     def protect_directory(
         self,
@@ -1209,30 +1231,19 @@ def __pyobfuscate__(_nm, _fl, _pl):
         recursive: bool = True,
         exclude_patterns: Optional[list] = None
     ) -> Dict[str, Any]:
-        """
-        Protect all Python files in a directory.
-        """
-        import fnmatch
-
+        """Protect all Python files in a directory."""
         input_dir = Path(input_dir)
         output_dir = Path(output_dir)
         exclude_patterns = exclude_patterns or ['__pycache__', '*.pyc', 'test_*']
 
-        results = {'files': {}, 'runtime': None}
+        results: Dict[str, Any] = {'files': {}, 'runtime': None}
         pattern = '**/*.py' if recursive else '*.py'
         runtime_created = False
 
         for py_file in input_dir.glob(pattern):
             relative = py_file.relative_to(input_dir)
 
-            # Check exclusions
-            skip = False
-            for excl in exclude_patterns:
-                if fnmatch.fnmatch(str(relative), excl) or fnmatch.fnmatch(py_file.name, excl):
-                    skip = True
-                    break
-
-            if skip:
+            if self._should_skip_file(relative, py_file.name, exclude_patterns):
                 continue
 
             try:
@@ -1244,15 +1255,10 @@ def __pyobfuscate__(_nm, _fl, _pl):
                 )
                 results['files'][str(relative)] = 'success'
 
-                if not runtime_created and 'runtime' in file_result:
-                    # Copy runtime to output root
-                    runtime_name = f'pyobfuscate_runtime_{self.runtime_id}.py'
-                    runtime_dest = output_dir / runtime_name
-                    if file_result['runtime'] != runtime_dest:
-                        import shutil
-                        shutil.copy2(file_result['runtime'], runtime_dest)
-                    results['runtime'] = runtime_dest
-                    runtime_created = True
+                if not runtime_created:
+                    runtime_created = self._copy_runtime_to_output(
+                        file_result, output_dir, results
+                    )
 
             except Exception as e:
                 results['files'][str(relative)] = f'error: {e}'

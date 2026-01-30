@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Shared Cryptographic Engine for PyObfuscate.
+Shared Cryptographic Engine for PyObfuscator.
 
 Provides AES-256-GCM encryption with PBKDF2 key derivation.
 Falls back to a stream cipher with HMAC if cryptography library is not available.
@@ -137,7 +137,9 @@ def get_machine_id() -> str:
         if mac != uuid.getnode():  # Check if it's a random MAC
             mac = 0
         machine_info.append(str(mac))
-    except:
+    except (SystemExit, KeyboardInterrupt):
+        raise
+    except Exception:
         pass
 
     # Try to get disk serial (Windows)
@@ -152,7 +154,9 @@ def get_machine_id() -> str:
                         if l.strip() and l.strip() != 'SerialNumber']
                 if lines:
                     machine_info.append(lines[0])
-        except:
+        except (SystemExit, KeyboardInterrupt):
+            raise
+        except Exception:
             pass
 
     # Create hash

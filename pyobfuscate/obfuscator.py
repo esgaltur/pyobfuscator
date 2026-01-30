@@ -1,6 +1,14 @@
 # -*- coding: utf-8 -*-
 """
 Core obfuscation module with various transformation techniques.
+
+Features:
+- Single file and directory obfuscation
+- Cross-file obfuscation with shared name mapping (for multi-file projects)
+- Method and class variable renaming (with attribute tracking)
+- Variable, function, and class renaming
+- String obfuscation (XOR, hex, base64)
+- Code compression
 """
 
 import ast
@@ -9,12 +17,17 @@ import random
 import string
 import zlib
 import hashlib
-from typing import Dict, Set, Optional, List
+from typing import Dict, Set, Optional, List, Tuple
 from pathlib import Path
 
 
 class NameGenerator:
-    """Generates obfuscated names for variables, functions, and classes."""
+    """
+    Generates obfuscated names for variables, functions, and classes.
+
+    Can be shared across multiple files to ensure consistent renaming
+    for cross-file obfuscation.
+    """
 
     def __init__(self, prefix: str = "_", style: str = "random"):
         self.prefix = prefix
@@ -22,6 +35,9 @@ class NameGenerator:
         self.counter = 0
         self.name_map: Dict[str, str] = {}
         self._used_names: Set[str] = set()
+        # Track which names are methods/attributes for cross-reference
+        self.method_names: Set[str] = set()
+        self.class_attributes: Set[str] = set()
 
     def _generate_random_name(self, length: int = 8) -> str:
         """Generate a random alphanumeric name."""
@@ -68,12 +84,42 @@ class NameGenerator:
         self.name_map[original] = new_name
         return new_name
 
+    def register_method(self, name: str) -> None:
+        """Register a name as a method for attribute renaming."""
+        self.method_names.add(name)
+
+    def register_class_attribute(self, name: str) -> None:
+        """Register a name as a class attribute for attribute renaming."""
+        self.class_attributes.add(name)
+
+    def is_known_member(self, name: str) -> bool:
+        """Check if a name is a known method or class attribute."""
+        return name in self.method_names or name in self.class_attributes
+
+    def export_mapping(self) -> Dict[str, str]:
+        """Export the name mapping for use in other files or debugging."""
+        return dict(self.name_map)
+
+    def import_mapping(self, mapping: Dict[str, str]) -> None:
+        """Import a name mapping from another obfuscation session."""
+        self.name_map.update(mapping)
+        self._used_names.update(mapping.values())
+
 
 class NameObfuscator(ast.NodeTransformer):
-    """AST transformer that renames variables, functions, and classes."""
+    """
+    AST transformer that renames variables, functions, classes, methods,
+    and class attributes.
+
+    Features:
+    - Tracks method definitions for safe attribute renaming
+    - Tracks class attributes for consistent renaming
+    - Preserves external API calls (module.function)
+    - Handles self.attr and cls.attr patterns
+    """
 
     # Names that should never be obfuscated
-    BUILTINS = set(dir(__builtins__)) if isinstance(__builtins__, dict) else set(dir(__builtins__))
+    BUILTINS = set(dir(__builtins__))
     RESERVED = {
         # Python keywords and special names
         'self', 'cls', 'super', '__init__', '__new__', '__del__', '__repr__',
@@ -114,12 +160,20 @@ class NameObfuscator(ast.NodeTransformer):
         'pytest', 'unittest', 'test', 'setup', 'teardown',
     }
 
-    def __init__(self, name_generator: NameGenerator, exclude_names: Optional[Set[str]] = None):
+    def __init__(self, name_generator: NameGenerator, exclude_names: Optional[Set[str]] = None,
+                 rename_methods: bool = True, rename_attributes: bool = True):
         self.name_gen = name_generator
         self.exclude = self.RESERVED | self.BUILTINS | (exclude_names or set())
         self.local_scopes: List[Set[str]] = []
         self.global_names: Set[str] = set()
         self.import_names: Set[str] = set()
+        self.rename_methods = rename_methods
+        self.rename_attributes = rename_attributes
+        # Track current class context for method/attribute detection
+        self._in_class: bool = False
+        self._current_class_name: Optional[str] = None
+        # Track local variables defined with self.x = ... or cls.x = ...
+        self._instance_attributes: Set[str] = set()
 
     def _should_rename(self, name: str) -> bool:
         """Check if a name should be obfuscated."""
@@ -168,9 +222,18 @@ class NameObfuscator(ast.NodeTransformer):
             args.kwarg.arg = self._rename(args.kwarg.arg)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
-        """Rename function definitions."""
-        # Rename the function name
-        node.name = self._rename(node.name)
+        """Rename function/method definitions."""
+        # Check if this is a method (inside a class)
+        is_method = self._in_class
+
+        if is_method and self.rename_methods:
+            # Register as method for attribute renaming
+            self.name_gen.register_method(node.name)
+            node.name = self._rename(node.name)
+        elif not is_method:
+            # Regular function
+            node.name = self._rename(node.name)
+
         # Rename arguments
         self._rename_arguments(node.args)
         # Visit child nodes
@@ -178,16 +241,51 @@ class NameObfuscator(ast.NodeTransformer):
         return node
 
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> ast.AsyncFunctionDef:
-        """Rename async function definitions."""
-        node.name = self._rename(node.name)
+        """Rename async function/method definitions."""
+        is_method = self._in_class
+
+        if is_method and self.rename_methods:
+            self.name_gen.register_method(node.name)
+            node.name = self._rename(node.name)
+        elif not is_method:
+            node.name = self._rename(node.name)
+
         self._rename_arguments(node.args)
         self.generic_visit(node)
         return node
 
     def visit_ClassDef(self, node: ast.ClassDef) -> ast.ClassDef:
-        """Rename class definitions."""
+        """Rename class definitions and track class context."""
+        # Rename the class
+        original_name = node.name
         node.name = self._rename(node.name)
+
+        # Enter class context
+        prev_in_class = self._in_class
+        prev_class_name = self._current_class_name
+        self._in_class = True
+        self._current_class_name = original_name
+
+        # First pass: collect class-level attribute assignments
+        for stmt in node.body:
+            if isinstance(stmt, ast.Assign):
+                for target in stmt.targets:
+                    if isinstance(target, ast.Name):
+                        # Class variable like: my_var = value
+                        self.name_gen.register_class_attribute(target.id)
+                        self._instance_attributes.add(target.id)
+            elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                # Annotated class variable like: my_var: int = value
+                self.name_gen.register_class_attribute(stmt.target.id)
+                self._instance_attributes.add(stmt.target.id)
+
+        # Visit child nodes
         self.generic_visit(node)
+
+        # Exit class context
+        self._in_class = prev_in_class
+        self._current_class_name = prev_class_name
+
         return node
 
     def visit_Name(self, node: ast.Name) -> ast.Name:
@@ -195,8 +293,67 @@ class NameObfuscator(ast.NodeTransformer):
         node.id = self._rename(node.id)
         return node
 
+    def _is_dunder_attribute(self, name: str) -> bool:
+        """Check if attribute is a dunder (double underscore) name."""
+        return name.startswith('__') and name.endswith('__')
+
+    def _is_self_or_cls_access(self, node: ast.Attribute) -> bool:
+        """Check if this is a self.x or cls.x access pattern."""
+        return (
+            isinstance(node.value, ast.Name) and
+            node.value.id in ('self', 'cls')
+        )
+
+    def _handle_self_cls_attribute(self, node: ast.Attribute, attr_name: str) -> None:
+        """Handle attribute access on self or cls."""
+        if not self._in_class:
+            return
+
+        # Track instance attribute assignments: self.x = ...
+        if isinstance(node.ctx, ast.Store):
+            self._instance_attributes.add(attr_name)
+            self.name_gen.register_class_attribute(attr_name)
+
+        # Rename if it's a known member or we're in the same class
+        should_rename = (
+            attr_name in self._instance_attributes or
+            self.name_gen.is_known_member(attr_name)
+        )
+        if should_rename:
+            node.attr = self._rename(attr_name)
+
     def visit_Attribute(self, node: ast.Attribute) -> ast.Attribute:
-        """Visit attributes but don't rename them (could be external API)."""
+        """Rename attributes (methods and class variables) when safe."""
+        # First, visit the value (the object being accessed)
+        self.generic_visit(node)
+
+        if not self.rename_attributes:
+            return node
+
+        attr_name = node.attr
+
+        # Don't rename dunder attributes or excluded names
+        if self._is_dunder_attribute(attr_name) or attr_name in self.exclude:
+            return node
+
+        if self._is_self_or_cls_access(node):
+            self._handle_self_cls_attribute(node, attr_name)
+        elif self.name_gen.is_known_member(attr_name):
+            # obj.attr where attr is a known method/attribute we defined
+            node.attr = self._rename(attr_name)
+
+        return node
+
+    def visit_Assign(self, node: ast.Assign) -> ast.Assign:
+        """Track attribute assignments for later renaming."""
+        # Check for self.x = ... pattern to track instance attributes
+        for target in node.targets:
+            if isinstance(target, ast.Attribute):
+                if (isinstance(target.value, ast.Name) and
+                    target.value.id in ('self', 'cls')):
+                    self._instance_attributes.add(target.attr)
+                    self.name_gen.register_class_attribute(target.attr)
+
         self.generic_visit(node)
         return node
 
@@ -204,7 +361,7 @@ class NameObfuscator(ast.NodeTransformer):
 class StringObfuscator(ast.NodeTransformer):
     """AST transformer that obfuscates string literals."""
 
-    def __init__(self, method: str = "base64"):
+    def __init__(self, method: str = "xor"):
         self.method = method
         self._in_fstring = False  # Track if we're inside an f-string
 
@@ -323,24 +480,62 @@ exec(_z.decompress(_b.b64decode({repr(encoded_code)})).decode('utf-8'))
 
 
 class Obfuscator:
-    """Main obfuscator class that combines all obfuscation techniques."""
+    """
+    Main obfuscator class that combines all obfuscation techniques.
+
+    Features:
+    - Variable, function, class, method, and attribute renaming
+    - Cross-file obfuscation (share name_generator for multiple files)
+    - String obfuscation (XOR, hex, base64)
+    - Code compression
+    - Docstring removal
+
+    For cross-file obfuscation (multi-file projects):
+        obfuscator = Obfuscator()
+        obfuscator.obfuscate_file("file1.py", "out/file1.py")
+        obfuscator.obfuscate_file("file2.py", "out/file2.py")  # Uses same name mapping
+        # Or use obfuscate_directory() for automatic handling
+    """
 
     def __init__(
         self,
         rename_variables: bool = True,
         rename_functions: bool = True,
         rename_classes: bool = True,
+        rename_methods: bool = True,
+        rename_attributes: bool = True,
         obfuscate_strings: bool = True,
         compress_code: bool = False,
         remove_comments: bool = True,
         remove_docstrings: bool = True,
         name_style: str = "random",
-        string_method: str = "base64",
-        exclude_names: Optional[Set[str]] = None
+        string_method: str = "xor",
+        exclude_names: Optional[Set[str]] = None,
+        name_generator: Optional[NameGenerator] = None
     ):
+        """
+        Initialize the obfuscator.
+
+        Args:
+            rename_variables: Rename local variables
+            rename_functions: Rename function definitions
+            rename_classes: Rename class definitions
+            rename_methods: Rename method definitions (inside classes)
+            rename_attributes: Rename class attributes and self.x patterns
+            obfuscate_strings: Apply string obfuscation
+            compress_code: Compress output with zlib
+            remove_comments: Remove comments (automatic via AST)
+            remove_docstrings: Remove docstrings
+            name_style: Name generation style ("random", "hex", "hash")
+            string_method: String obfuscation method ("xor", "hex", "base64")
+            exclude_names: Names to never obfuscate
+            name_generator: Shared NameGenerator for cross-file obfuscation
+        """
         self.rename_variables = rename_variables
         self.rename_functions = rename_functions
         self.rename_classes = rename_classes
+        self.rename_methods = rename_methods
+        self.rename_attributes = rename_attributes
         self.obfuscate_strings = obfuscate_strings
         self.compress_code = compress_code
         self.remove_comments = remove_comments
@@ -349,7 +544,9 @@ class Obfuscator:
         self.string_method = string_method
         self.exclude_names = exclude_names or set()
 
-        self.name_generator = NameGenerator(style=name_style)
+        # Use provided name_generator or create new one
+        # Sharing name_generator enables cross-file obfuscation
+        self.name_generator = name_generator or NameGenerator(style=name_style)
 
     def _remove_docstrings(self, tree: ast.AST) -> ast.AST:
         """Remove docstrings from the AST."""
@@ -376,7 +573,9 @@ class Obfuscator:
         if self.rename_variables or self.rename_functions or self.rename_classes:
             name_obfuscator = NameObfuscator(
                 self.name_generator,
-                exclude_names=self.exclude_names
+                exclude_names=self.exclude_names,
+                rename_methods=self.rename_methods,
+                rename_attributes=self.rename_attributes
             )
             tree = name_obfuscator.visit(tree)
 
@@ -403,7 +602,19 @@ class Obfuscator:
         return obfuscated
 
     def obfuscate_file(self, input_path: Path, output_path: Optional[Path] = None) -> str:
-        """Obfuscate a Python file."""
+        """
+        Obfuscate a Python file.
+
+        When obfuscating multiple files, use the same Obfuscator instance
+        to ensure consistent name mapping across files.
+
+        Args:
+            input_path: Path to input file
+            output_path: Path to output file (optional)
+
+        Returns:
+            Obfuscated source code
+        """
         input_path = Path(input_path)
 
         with open(input_path, 'r', encoding='utf-8') as f:
@@ -419,6 +630,35 @@ class Obfuscator:
 
         return obfuscated
 
+    def _should_exclude_file(
+        self,
+        relative_path: Path,
+        filename: str,
+        exclude_patterns: List[str]
+    ) -> bool:
+        """Check if a file should be excluded based on patterns."""
+        import fnmatch
+        for pattern in exclude_patterns:
+            if fnmatch.fnmatch(str(relative_path), pattern):
+                return True
+            if fnmatch.fnmatch(filename, pattern):
+                return True
+        return False
+
+    def _collect_python_files(
+        self,
+        input_dir: Path,
+        pattern: str,
+        exclude_patterns: List[str]
+    ) -> List[Tuple[Path, Path]]:
+        """Collect Python files to process, excluding matched patterns."""
+        py_files = []
+        for py_file in input_dir.glob(pattern):
+            relative_path = py_file.relative_to(input_dir)
+            if not self._should_exclude_file(relative_path, py_file.name, exclude_patterns):
+                py_files.append((py_file, relative_path))
+        return py_files
+
     def obfuscate_directory(
         self,
         input_dir: Path,
@@ -426,31 +666,24 @@ class Obfuscator:
         recursive: bool = True,
         exclude_patterns: Optional[List[str]] = None
     ) -> Dict[str, str]:
-        """Obfuscate all Python files in a directory."""
-        import fnmatch
+        """
+        Obfuscate all Python files in a directory with cross-file consistency.
 
+        This method ensures that names are consistently obfuscated across
+        all files, so imports between files continue to work correctly.
+        """
         input_dir = Path(input_dir)
         output_dir = Path(output_dir)
         exclude_patterns = exclude_patterns or ['__pycache__', '*.pyc', 'test_*', '*_test.py']
 
-        results = {}
+        results: Dict[str, str] = {}
         pattern = '**/*.py' if recursive else '*.py'
 
-        for py_file in input_dir.glob(pattern):
-            # Check exclusions
-            relative_path = py_file.relative_to(input_dir)
-            skip = False
-            for pattern_str in exclude_patterns:
-                if fnmatch.fnmatch(str(relative_path), pattern_str):
-                    skip = True
-                    break
-                if fnmatch.fnmatch(py_file.name, pattern_str):
-                    skip = True
-                    break
+        # Collect all files to process
+        py_files = self._collect_python_files(input_dir, pattern, exclude_patterns)
 
-            if skip:
-                continue
-
+        # Obfuscate all files using shared name generator
+        for py_file, relative_path in py_files:
             output_path = output_dir / relative_path
 
             try:
@@ -460,3 +693,47 @@ class Obfuscator:
                 results[str(relative_path)] = f"error: {e}"
 
         return results
+
+    def export_name_mapping(self) -> Dict[str, str]:
+        """
+        Export the current name mapping for debugging or cross-session use.
+
+        Returns:
+            Dict mapping original names to obfuscated names
+
+        Example:
+            obfuscator = Obfuscator()
+            obfuscator.obfuscate_file("file1.py", "out/file1.py")
+            mapping = obfuscator.export_name_mapping()
+            # Save mapping for later or for debugging
+            import json
+            with open("mapping.json", "w") as f:
+                json.dump(mapping, f)
+        """
+        return self.name_generator.export_mapping()
+
+    def import_name_mapping(self, mapping: Dict[str, str]) -> None:
+        """
+        Import a name mapping from a previous session.
+
+        This is useful for:
+        - Continuing obfuscation across multiple runs
+        - Ensuring consistency when adding new files to an obfuscated project
+
+        Args:
+            mapping: Dict mapping original names to obfuscated names
+        """
+        self.name_generator.import_mapping(mapping)
+
+    def get_obfuscated_name(self, original: str) -> Optional[str]:
+        """
+        Get the obfuscated version of a name, if it exists.
+
+        Args:
+            original: Original name
+
+        Returns:
+            Obfuscated name or None if not yet mapped
+        """
+        return self.name_generator.name_map.get(original)
+

@@ -1,23 +1,32 @@
-# PyObfuscate
+# PyObfuscator
 
 [![CI](https://github.com/esgaltur/pyobfuscator/actions/workflows/ci.yml/badge.svg)](https://github.com/esgaltur/pyobfuscator/actions/workflows/ci.yml)
-[![PyPI version](https://badge.fury.io/py/pyobfuscate.svg)](https://badge.fury.io/py/pyobfuscate)
+[![PyPI version](https://badge.fury.io/py/pyobfuscator.svg)](https://badge.fury.io/py/pyobfuscator)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Security: 50+ Features](https://img.shields.io/badge/Security-50%2B%20Features-green.svg)](https://github.com/esgaltur/pyobfuscator#features)
+[![White Paper](https://img.shields.io/badge/White%20Paper-Available-blue.svg)](docs/WHITEPAPER.md)
+[![Documentation](https://img.shields.io/badge/Docs-Technical-green.svg)](docs/TECHNICAL_DOCUMENTATION.md)
 
-A comprehensive, **100% free and open source** Python code obfuscation library with enterprise-grade runtime protection. PyObfuscate itself has **no trial, no paid tiers, no licensing restrictions** - it's completely free under the MIT License.
+A comprehensive, **100% free and open source** Python code obfuscation library with enterprise-grade runtime protection. PyObfuscator itself has **no trial, no paid tiers, no licensing restrictions** - it's completely free under the MIT License.
+
+## 📚 Documentation
+
+- **[White Paper](docs/WHITEPAPER.md)** - Comprehensive overview of the protection framework
+- **[Technical Documentation](docs/TECHNICAL_DOCUMENTATION.md)** - Detailed scientific basis and implementation details
+- **[Citation File](CITATION.cff)** - For academic citations
+- **[BibTeX References](docs/references.bib)** - Bibliography for academic papers
 
 ## ⚠️ Important: Understanding the Terminology
 
 | Term | What it means |
 |------|---------------|
-| **PyObfuscate** | This tool. 100% free, open source, MIT License. No restrictions. |
-| **Your Code** | The Python code YOU want to protect using PyObfuscate. |
-| **Protected Code** | Your code after PyObfuscate processes it. |
-| **Licensing/DRM Features** | Tools for YOU to add restrictions to YOUR code (e.g., trial periods, machine binding). These do NOT apply to PyObfuscate itself. |
+| **PyObfuscator** | This tool. 100% free, open source, MIT License. No restrictions. |
+| **Your Code** | The Python code YOU want to protect using PyObfuscator. |
+| **Protected Code** | Your code after PyObfuscator processes it. |
+| **Licensing/DRM Features** | Tools for YOU to add restrictions to YOUR code (e.g., trial periods, machine binding). These do NOT apply to PyObfuscator itself. |
 
-> **Example:** You can use PyObfuscate (free) to create a trial version of your commercial app that expires in 30 days. The "trial" is for YOUR app, not PyObfuscate.
+> **Example:** You can use PyObfuscator (free) to create a trial version of your commercial app that expires in 30 days. The "trial" is for YOUR app, not PyObfuscator.
 
 ## Features
 
@@ -81,7 +90,7 @@ A comprehensive, **100% free and open source** Python code obfuscation library w
 - **Encrypted Error Messages**: All error strings are XOR-encrypted
 
 ### Licensing & DRM (Features to Protect YOUR Code)
-> 🆓 **PyObfuscate is free.** These features let you add licensing to YOUR protected applications.
+> 🆓 **PyObfuscator is free.** These features let you add licensing to YOUR protected applications.
 
 - **License Expiration**: Add time limits to YOUR protected code (e.g., 30-day trial)
 - **Machine Binding**: Lock YOUR code to specific hardware (CPU, MAC, disk serial)
@@ -104,6 +113,25 @@ A comprehensive, **100% free and open source** Python code obfuscation library w
 - **Authentication**: Built-in integrity verification (AEAD)
 - **Per-file Salt**: Random 16-byte salt for each encryption
 - **Per-file Nonce**: Random 12-byte nonce for each encryption
+
+### Why Open Source? (Kerckhoffs's Principle)
+
+> *"A cryptographic system should be secure even if everything about the system, except the key, is public knowledge."* — Auguste Kerckhoffs, 1883
+
+PyObfuscator is intentionally open source because:
+
+1. **Cryptographic security doesn't depend on algorithm secrecy** — AES-256 is a public standard; security comes from the secret key
+2. **Python libraries can't be hidden anyway** — `.pyc` bytecode is trivially decompilable
+3. **Security by obscurity always fails** — Attackers will reverse-engineer closed-source tools
+4. **Trust through transparency** — Open source allows security audits
+
+**What IS secret (unique per protection):**
+- Your 256-bit encryption key
+- Random salt/nonce per file
+- Polymorphic variable names
+- Randomized VM opcode mapping
+
+See the [White Paper](docs/WHITEPAPER.md#84-open-source-security-model-kerckhoffss-principle) for detailed analysis.
 
 ### Optional Dependencies
 For best performance, install the `cryptography` package:
@@ -176,7 +204,7 @@ obfuscator = Obfuscator(
     compress_code=False,
     remove_docstrings=True,
     name_style="random",  # or "hex", "hash"
-    string_method="base64",  # or "hex", "xor"
+    string_method="xor",  # recommended (or "hex", "base64" - encoding only)
     exclude_names={'my_public_api'}  # names to preserve
 )
 
@@ -213,9 +241,11 @@ results = obfuscator.obfuscate_directory(
 
 ### String Obfuscation Methods
 
-- `base64`: Base64 encoding (default, most compatible)
-- `hex`: Hexadecimal encoding
-- `xor`: XOR encryption with random key (more secure)
+- `xor`: XOR encryption with random key (default, recommended - actual obfuscation)
+- `hex`: Hexadecimal encoding (easily reversible - encoding only)
+- `base64`: Base64 encoding (easily reversible - encoding only)
+
+> ⚠️ **Security Note:** Base64 and hex are **encoding**, not encryption. They can be trivially decoded. Use `xor` for actual string obfuscation. For maximum protection, use Runtime Protection which encrypts all code with AES-256-GCM.
 
 ### CLI Options
 
@@ -271,14 +301,14 @@ def _zX9pD():
 ### After PYD Protection (Encrypted Runtime)
 
 ```python
-# PyObfuscate 1.0.0 (PYD), abc123, Protected, 2026-01-30
+# PyObfuscator 1.0.0 (PYD), abc123, Protected, 2026-01-30
 from pyobfuscate_runtime_abc123 import __pyobfuscate__
 __pyobfuscate__(__name__, __file__, b'UFlEMDAwMDEAA...')
 ```
 
 ## Runtime Protection API
 
-> 🆓 **Reminder:** PyObfuscate is free. The examples below show how to add licensing restrictions to YOUR code.
+> 🆓 **Reminder:** PyObfuscator is free. The examples below show how to add licensing restrictions to YOUR code.
 
 ### Basic Usage (No Restrictions on Your Code)
 
@@ -369,7 +399,7 @@ print(f"PYD runtime: {result['pyd']}")
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `license_info` | str | "PyObfuscate..." | License/author info embedded in YOUR protected files |
+| `license_info` | str | "PyObfuscator..." | License/author info embedded in YOUR protected files |
 | `encryption_key` | bytes | Auto-generated | Custom 32-byte encryption key |
 | `expiration_date` | datetime | None | Optional expiration date for time-limited licenses |
 | `allowed_machines` | list[str] | [] | List of allowed machine IDs for hardware binding |
@@ -501,47 +531,159 @@ python pyobfuscate/tests.py
 └────────────────────────────────────────┘
 ```
 
-## Comparison with Commercial Solutions
+## Comparison with Other Solutions
 
-| Feature | PyObfuscate | Commercial Tools |
-|---------|-------------|------------------|
-| **License** | Free & Open Source | Paid |
-| **Basic Obfuscation** | | |
-| Name obfuscation | ✓ | ✓ |
-| String obfuscation | ✓ | ✓ |
-| Code compression | ✓ | ✓ |
-| **Encryption** | | |
-| AES-256-GCM | ✓ | ✓ |
-| Layered encryption | ✓ | ✓ |
-| Bytecode scrambling | ✓ | ✓ |
-| **Runtime Protection** | | |
-| Anti-debugging (12+ layers) | ✓ | ✓ |
-| Anti-memory dump | ✓ | ✓ |
-| Anti-hooking | ✓ | ✓ |
-| Anti-patching | ✓ | ✓ |
-| **Code Virtualization** | | |
-| Custom VM | ✓ | ✓ |
-| Randomized opcodes | ✓ | ✓ |
-| Self-modifying code | ✓ | ✓ |
-| **Control Flow** | | |
-| Control flow flattening | ✓ | ✓ |
-| Opaque predicates | ✓ | ✓ |
-| Dead code injection | ✓ | ✓ |
-| State machine verification | ✓ | Some |
-| **Licensing/DRM** | | |
-| License expiration | ✓ | ✓ |
-| Machine binding | ✓ | ✓ |
-| Domain lock | ✓ | ✓ |
-| Network license | ✓ | ✓ |
-| Watermarking | ✓ | ✓ |
-| **Other** | | |
-| PYD compilation | ✓ | ✓ |
-| Polymorphic output | ✓ | ✓ |
-| Checksum chains | ✓ | Some |
-| Honey tokens | ✓ | Some |
-| Python 3.13+ | ✓ | Limited |
+### Quick Overview
 
-**Total: 50+ security features** - PyObfuscate provides enterprise-grade protection completely free and open source.
+| Tool | Type | License | Price | Protection Level |
+|------|------|---------|-------|------------------|
+| **PyObfuscator** | Obfuscator + Runtime Protection | MIT (Free) | Free | ⭐⭐⭐⭐⭐ |
+| **PyArmor** | Obfuscator + Runtime Protection | Proprietary | $56-$512/year | ⭐⭐⭐⭐⭐ |
+| **Nuitka** | Compiler | MIT (Free) | Free | ⭐⭐⭐ |
+| **Cython** | Compiler | Apache 2.0 (Free) | Free | ⭐⭐⭐ |
+| **PyInstaller** | Packager | GPL | Free | ⭐ |
+| **pyminifier** | Obfuscator | MIT (Free) | Free | ⭐⭐ |
+| **python-obfuscator** | Obfuscator | MIT (Free) | Free | ⭐⭐ |
+
+### Detailed Feature Comparison
+
+#### Licensing & Cost
+
+| Feature | PyObfuscator | PyArmor | Nuitka | Cython |
+|---------|-------------|---------|--------|--------|
+| **License** | MIT (Free) | Proprietary | MIT | Apache 2.0 |
+| **Cost** | $0 | $56-$512/year | $0 | $0 |
+| **Commercial Use** | ✅ Free | 💰 Paid license | ✅ Free | ✅ Free |
+| **Source Available** | ✅ Full | ❌ Closed | ✅ Full | ✅ Full |
+| **No Usage Limits** | ✅ | ❌ Tiered | ✅ | ✅ |
+| **Offline Activation** | ✅ N/A | ❌ Requires | ✅ N/A | ✅ N/A |
+
+#### Code Obfuscation
+
+| Feature | PyObfuscator | PyArmor | Nuitka | Cython | pyminifier |
+|---------|-------------|---------|--------|--------|------------|
+| Name obfuscation | ✅ | ✅ | ❌ | ❌ | ✅ |
+| String obfuscation | ✅ (3 modes) | ✅ | ❌ | ❌ | ❌ |
+| Control flow flattening | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Opaque predicates | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Dead code injection | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Docstring removal | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Code compression | ✅ | ❌ | ❌ | ❌ | ✅ |
+
+#### Encryption & Bytecode Protection
+
+| Feature | PyObfuscator | PyArmor | Nuitka | Cython |
+|---------|-------------|---------|--------|--------|
+| AES-256 encryption | ✅ GCM | ✅ | ❌ | ❌ |
+| Layered encryption | ✅ XOR+AES | ❌ | ❌ | ❌ |
+| Bytecode scrambling | ✅ | ✅ | N/A | N/A |
+| PBKDF2 key derivation | ✅ 100k iter | ❌ | ❌ | ❌ |
+| Per-file salt/nonce | ✅ | ❌ | ❌ | ❌ |
+| Constant blinding | ✅ | ❌ | ❌ | ❌ |
+| Native compilation | ✅ PYD/SO | ❌ | ✅ | ✅ |
+
+#### Code Virtualization
+
+| Feature | PyObfuscator | PyArmor | Nuitka | Cython |
+|---------|-------------|---------|--------|--------|
+| Custom VM | ✅ Stack-based | ✅ | ❌ | ❌ |
+| Randomized opcodes | ✅ 35 opcodes | ✅ | ❌ | ❌ |
+| Self-modifying code | ✅ | ❌ | ❌ | ❌ |
+| Anti-analysis in VM | ✅ | ❌ | ❌ | ❌ |
+| Subroutine support | ✅ CALL/RET | ❌ | ❌ | ❌ |
+
+#### Anti-Analysis & Anti-Debug (12+ Layers)
+
+| Feature | PyObfuscator | PyArmor | Nuitka | Cython |
+|---------|-------------|---------|--------|--------|
+| Debugger detection | ✅ Multi-layer | ✅ | ❌ | ❌ |
+| Timing-based anti-debug | ✅ | ✅ | ❌ | ❌ |
+| Memory dump detection | ✅ | ❌ | ❌ | ❌ |
+| Anti-hooking | ✅ | ❌ | ❌ | ❌ |
+| Anti-patching | ✅ | ✅ | ❌ | ❌ |
+| Call stack verification | ✅ | ❌ | ❌ | ❌ |
+| Parent process check | ✅ | ❌ | ❌ | ❌ |
+| Environment fingerprinting | ✅ | ❌ | ❌ | ❌ |
+| VM/Sandbox detection | ✅ | ✅ | ❌ | ❌ |
+| Profile/Trace detection | ✅ | ✅ | ❌ | ❌ |
+| Self-integrity check | ✅ | ✅ | ❌ | ❌ |
+| Debugger module detection | ✅ | ✅ | ❌ | ❌ |
+
+#### Licensing & DRM Features
+
+| Feature | PyObfuscator | PyArmor | Nuitka | Cython |
+|---------|-------------|---------|--------|--------|
+| License expiration | ✅ | ✅ | ❌ | ❌ |
+| Machine binding | ✅ | ✅ | ❌ | ❌ |
+| Domain lock | ✅ | ✅ | ❌ | ❌ |
+| Network license | ✅ | ✅ | ❌ | ❌ |
+| Watermarking | ✅ | ❌ | ❌ | ❌ |
+| Honey tokens | ✅ | ❌ | ❌ | ❌ |
+
+#### Integrity & Defense
+
+| Feature | PyObfuscator | PyArmor | Nuitka | Cython |
+|---------|-------------|---------|--------|--------|
+| SHA-256 checksums | ✅ | ✅ | ❌ | ❌ |
+| Checksum chains | ✅ | ❌ | ❌ | ❌ |
+| HMAC authentication | ✅ | ❌ | ❌ | ❌ |
+| Encrypted error messages | ✅ | ❌ | ❌ | ❌ |
+| Resource exhaustion defense | ✅ | ❌ | ❌ | ❌ |
+| Secure memory wipe | ✅ 5-pass | ❌ | ❌ | ❌ |
+| Decoy operations | ✅ | ❌ | ❌ | ❌ |
+
+#### Platform & Compatibility
+
+| Feature | PyObfuscator | PyArmor | Nuitka | Cython |
+|---------|-------------|---------|--------|--------|
+| Python 3.10 | ✅ | ✅ | ✅ | ✅ |
+| Python 3.11 | ✅ | ✅ | ✅ | ✅ |
+| Python 3.12 | ✅ | ✅ | ✅ | ✅ |
+| Python 3.13+ | ✅ | ⚠️ Limited | ⚠️ Limited | ⚠️ Limited |
+| Windows | ✅ | ✅ | ✅ | ✅ |
+| Linux | ✅ | ✅ | ✅ | ✅ |
+| macOS | ✅ | ✅ | ✅ | ✅ |
+| Cross-platform output | ✅ | ❌ | ❌ | ❌ |
+
+#### Output & Performance
+
+| Feature | PyObfuscator | PyArmor | Nuitka | Cython |
+|---------|-------------|---------|--------|--------|
+| Polymorphic output | ✅ | ❌ | ❌ | ❌ |
+| Standalone executable | Via PyInstaller | Via PyInstaller | ✅ Native | Via PyInstaller |
+| Performance overhead | ~5-15% | ~10-20% | +10-30% faster | +10-50% faster |
+| Output size | Small | Medium | Large | Medium |
+
+### When to Use What?
+
+| Use Case | Recommended Tool | Why |
+|----------|------------------|-----|
+| **Maximum protection (free)** | **PyObfuscator** | 50+ security features, completely free |
+| **Maximum protection (paid)** | PyArmor | Mature, well-tested, commercial support |
+| **Performance critical** | Nuitka or Cython | Native compilation for speed boost |
+| **Simple distribution** | PyInstaller + PyObfuscator | Easy packaging with protection |
+| **IP protection + speed** | PyObfuscator (PYD mode) | Native .pyd/.so with full protection |
+| **Budget constrained** | **PyObfuscator** | Enterprise features at $0 cost |
+
+### Cost Analysis (Annual)
+
+| Scenario | PyArmor | PyObfuscator | Savings |
+|----------|---------|-------------|---------|
+| Personal/Hobby | $56 | $0 | $56/year |
+| Small Team (5 devs) | $280 | $0 | $280/year |
+| Enterprise | $512+ | $0 | $512+/year |
+| 5-year TCO (Enterprise) | $2,560+ | $0 | **$2,560+** |
+
+### Summary
+
+**PyObfuscator** offers **50+ security features** completely free and open source, matching or exceeding commercial tools like PyArmor in most categories:
+
+- ✅ **More anti-analysis layers** (12+ vs typical 5-6)
+- ✅ **Advanced encryption** (layered XOR+AES, PBKDF2)
+- ✅ **Code virtualization** with self-modifying VM
+- ✅ **Unique features**: Honey tokens, checksum chains, polymorphic output, watermarking
+- ✅ **Better Python 3.13+ support**
+- ✅ **$0 cost** - No licensing fees ever
 
 ## License
 

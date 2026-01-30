@@ -1,0 +1,76 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "PyObfuscator: A Multi-Layer Defense Framework for Python Code Protection"
+version: 1.0.0
+date-released: 2026-01-30
+url: "https://github.com/esgaltur/pyobfuscator"
+repository-code: "https://github.com/esgaltur/pyobfuscator"
+license: MIT
+authors:
+  - family-names: "Sosnovic"
+    given-names: "Dmitrij"
+    email: "dmitriy@sosnovich.com"
+    orcid: ""
+keywords:
+  - python
+  - obfuscation
+  - code-protection
+  - reverse-engineering
+  - encryption
+  - anti-debugging
+  - bytecode
+  - security
+  - aes-256-gcm
+  - pbkdf2
+  - software-protection
+  - intellectual-property
+abstract: >-
+  PyObfuscator is an open-source Python code protection framework
+  implementing defense-in-depth through six complementary security
+  layers: AST-based code obfuscation, AES-256-GCM encryption with
+  PBKDF2 key derivation, control flow protection with opaque predicates,
+  code virtualization with a custom stack-based VM, comprehensive
+  anti-analysis suite with 12+ detection mechanisms, and licensing/DRM
+  capabilities. The framework generates polymorphic runtimes with
+  unique variable names, randomized opcodes, and self-modifying code
+  to resist pattern matching. Optional Cython compilation produces
+  native .pyd/.so binaries for maximum protection. PyObfuscator
+  provides enterprise-grade protection comparable to commercial
+  solutions while remaining completely free and open source.
+references:
+  - type: article
+    authors:
+      - family-names: "Collberg"
+        given-names: "Christian"
+      - family-names: "Thomborson"
+        given-names: "Clark"
+      - family-names: "Low"
+        given-names: "Douglas"
+    title: "A Taxonomy of Obfuscating Transformations"
+    year: 1997
+    institution: "University of Auckland"
+    notes: "Technical Report 148"
+  - type: standard
+    title: "NIST SP 800-132: Recommendation for Password-Based Key Derivation"
+    year: 2010
+    institution: "National Institute of Standards and Technology"
+  - type: standard
+    title: "NIST SP 800-38D: Recommendation for Block Cipher Modes of Operation: Galois/Counter Mode (GCM)"
+    year: 2007
+    institution: "National Institute of Standards and Technology"
+  - type: conference-paper
+    authors:
+      - family-names: "Banescu"
+        given-names: "Sebastian"
+      - family-names: "Collberg"
+        given-names: "Christian"
+      - family-names: "Ganesh"
+        given-names: "Vijay"
+      - family-names: "Newsham"
+        given-names: "Zack"
+      - family-names: "Pretschner"
+        given-names: "Alexander"
+    title: "Code Obfuscation Against Symbolic Execution Attacks"
+    year: 2016
+    conference: "Annual Computer Security Applications Conference (ACSAC)"

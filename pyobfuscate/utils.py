@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Utility functions for PyObfuscate.
+Utility functions for PyObfuscator.
 """
 
 import hashlib
-import os
 import re
 from pathlib import Path
 from typing import Set, List, Optional
@@ -203,7 +202,7 @@ def generate_license_header(
     year = year or str(datetime.datetime.now().year)
 
     return f'''# -*- coding: utf-8 -*-
-# Protected by PyObfuscate
+# Protected by PyObfuscator
 # Copyright (c) {year} {author}
 # Unauthorized copying or distribution is prohibited.
 

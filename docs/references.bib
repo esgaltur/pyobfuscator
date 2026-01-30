@@ -1,0 +1,239 @@
+% PyObfuscator Bibliography
+% Use this file to cite PyObfuscator in academic publications
+
+% ============================================
+% Main Software Citation
+% ============================================
+
+@software{pyobfuscator2026,
+  author       = {Sosnovic, Dmitrij},
+  title        = {{PyObfuscator}: A Multi-Layer Defense Framework for Python Code Protection},
+  version      = {1.0.0},
+  year         = {2026},
+  month        = {1},
+  url          = {https://github.com/esgaltur/pyobfuscator},
+  note         = {Open source software released under MIT License}
+}
+
+% ============================================
+% White Paper Citation
+% ============================================
+
+@techreport{sosnovic2026pyobfuscator,
+  author       = {Sosnovic, Dmitrij},
+  title        = {{PyObfuscator}: A Multi-Layer Defense Framework for Python Code Protection},
+  institution  = {Independent Research},
+  year         = {2026},
+  month        = {January},
+  type         = {White Paper},
+  url          = {https://github.com/esgaltur/pyobfuscator/blob/main/docs/WHITEPAPER.md},
+  abstract     = {This paper presents PyObfuscator, an open-source Python code protection
+                  framework that implements a defense-in-depth strategy through multiple
+                  complementary security layers. The framework combines Abstract Syntax Tree
+                  (AST) transformations, AES-256-GCM encryption with PBKDF2 key derivation,
+                  polymorphic runtime generation, code virtualization, and comprehensive
+                  anti-analysis techniques.}
+}
+
+% ============================================
+% Related Work - Foundational Papers
+% ============================================
+
+@techreport{collberg1997taxonomy,
+  author       = {Collberg, Christian and Thomborson, Clark and Low, Douglas},
+  title        = {A Taxonomy of Obfuscating Transformations},
+  institution  = {University of Auckland, Department of Computer Science},
+  year         = {1997},
+  number       = {148},
+  note         = {Foundational work on code obfuscation classification}
+}
+
+@inproceedings{barak2001impossibility,
+  author       = {Barak, Boaz and Goldreich, Oded and Impagliazzo, Russell and
+                  Rudich, Steven and Sahai, Amit and Vadhan, Salil and Yang, Ke},
+  title        = {On the (Im)possibility of Obfuscating Programs},
+  booktitle    = {Advances in Cryptology --- CRYPTO 2001},
+  year         = {2001},
+  pages        = {1--18},
+  publisher    = {Springer},
+  series       = {Lecture Notes in Computer Science},
+  volume       = {2139}
+}
+
+@techreport{wang2000tamper,
+  author       = {Wang, Chenxi and Hill, Jonathan and Knight, John and Davidson, Jack},
+  title        = {Software Tamper Resistance: Obstructing Static Analysis of Programs},
+  institution  = {University of Virginia, Department of Computer Science},
+  year         = {2000},
+  number       = {CS-2000-12}
+}
+
+@inproceedings{banescu2016obfuscation,
+  author       = {Banescu, Sebastian and Collberg, Christian and Ganesh, Vijay and
+                  Newsham, Zack and Pretschner, Alexander},
+  title        = {Code Obfuscation Against Symbolic Execution Attacks},
+  booktitle    = {Annual Computer Security Applications Conference (ACSAC)},
+  year         = {2016},
+  publisher    = {ACM}
+}
+
+% ============================================
+% Cryptographic Standards
+% ============================================
+
+@misc{nist2007gcm,
+  author       = {{National Institute of Standards and Technology}},
+  title        = {Recommendation for Block Cipher Modes of Operation:
+                  Galois/Counter Mode ({GCM}) and {GMAC}},
+  howpublished = {NIST Special Publication 800-38D},
+  year         = {2007},
+  month        = {November}
+}
+
+@misc{nist2010pbkdf,
+  author       = {{National Institute of Standards and Technology}},
+  title        = {Recommendation for Password-Based Key Derivation},
+  howpublished = {NIST Special Publication 800-132},
+  year         = {2010},
+  month        = {December}
+}
+
+@misc{nist2001aes,
+  author       = {{National Institute of Standards and Technology}},
+  title        = {Advanced Encryption Standard ({AES})},
+  howpublished = {FIPS Publication 197},
+  year         = {2001},
+  month        = {November}
+}
+
+@misc{nist2019transitions,
+  author       = {{National Institute of Standards and Technology}},
+  title        = {Transitioning the Use of Cryptographic Algorithms and Key Lengths},
+  howpublished = {NIST Special Publication 800-131A Rev. 2},
+  year         = {2019},
+  month        = {March}
+}
+
+@misc{nist2020keymanagement,
+  author       = {{National Institute of Standards and Technology}},
+  title        = {Recommendation for Key Management: Part 1 -- General},
+  howpublished = {NIST Special Publication 800-57 Part 1 Rev. 5},
+  year         = {2020},
+  month        = {May}
+}
+
+% ============================================
+% Post-Quantum Cryptography Standards (2024)
+% ============================================
+
+@misc{nist2024mlkem,
+  author       = {{National Institute of Standards and Technology}},
+  title        = {Module-Lattice-Based Key-Encapsulation Mechanism Standard ({ML-KEM})},
+  howpublished = {FIPS Publication 203},
+  year         = {2024},
+  month        = {August},
+  note         = {Post-quantum key encapsulation mechanism (formerly Kyber)}
+}
+
+@misc{nist2024mldsa,
+  author       = {{National Institute of Standards and Technology}},
+  title        = {Module-Lattice-Based Digital Signature Standard ({ML-DSA})},
+  howpublished = {FIPS Publication 204},
+  year         = {2024},
+  month        = {August},
+  note         = {Post-quantum digital signature algorithm (formerly Dilithium)}
+}
+
+@misc{nist2024slhdsa,
+  author       = {{National Institute of Standards and Technology}},
+  title        = {Stateless Hash-Based Digital Signature Standard ({SLH-DSA})},
+  howpublished = {FIPS Publication 205},
+  year         = {2024},
+  month        = {August},
+  note         = {Post-quantum hash-based signature (formerly SPHINCS+)}
+}
+
+% ============================================
+% Anti-Analysis and Protection Techniques
+% ============================================
+
+@inproceedings{madou2005software,
+  author       = {Madou, Matias and Anckaert, Bertrand and Moseley, Patrick and
+                  Debray, Saumya and De Sutter, Bjorn and De Bosschere, Koen},
+  title        = {Software Protection Through Dynamic Code Mutation},
+  booktitle    = {Workshop on Information Security Applications (WISA)},
+  year         = {2005},
+  pages        = {194--206}
+}
+
+@inproceedings{anckaert2004selfmodifying,
+  author       = {Anckaert, Bertrand and Madou, Matias and De Bosschere, Koen},
+  title        = {A Model for Self-Modifying Code},
+  booktitle    = {Information Hiding},
+  year         = {2004},
+  pages        = {232--248},
+  publisher    = {Springer}
+}
+
+@inproceedings{ferrie2011anti,
+  author       = {Ferrie, Peter},
+  title        = {Anti-Unpacker Tricks},
+  booktitle    = {Virus Bulletin Conference},
+  year         = {2011}
+}
+
+% ============================================
+% Control Flow and Virtual Machine Protection
+% ============================================
+
+@article{linn2003obfuscation,
+  author       = {Linn, Cullen and Debray, Saumya},
+  title        = {Obfuscation of Executable Code to Improve Resistance to Static Disassembly},
+  journal      = {ACM Conference on Computer and Communications Security (CCS)},
+  year         = {2003},
+  pages        = {290--299}
+}
+
+@inproceedings{udupa2005deobfuscation,
+  author       = {Udupa, Sharath K. and Debray, Saumya K. and Madou, Matias},
+  title        = {Deobfuscation: Reverse Engineering Obfuscated Code},
+  booktitle    = {Working Conference on Reverse Engineering (WCRE)},
+  year         = {2005},
+  pages        = {45--54},
+  publisher    = {IEEE}
+}
+
+% ============================================
+% Python-Specific Security
+% ============================================
+
+@book{portnoy2018blackhat,
+  author       = {Portnoy, Aaron},
+  title        = {Black Hat Python: Python Programming for Hackers and Pentesters},
+  publisher    = {No Starch Press},
+  year         = {2018},
+  edition      = {2nd}
+}
+
+@misc{python2024datamodel,
+  author       = {{Python Software Foundation}},
+  title        = {Python 3.12 Language Reference: Data Model},
+  year         = {2024},
+  url          = {https://docs.python.org/3/reference/datamodel.html}
+}
+
+% ============================================
+% Example Citations in Text
+% ============================================
+%
+% To cite PyObfuscator:
+%   \cite{pyobfuscator2026}
+%   \cite{sosnovic2026pyobfuscator}
+%
+% Example paragraph:
+%   "PyObfuscator~\cite{pyobfuscator2026} implements the obfuscation taxonomy
+%   proposed by Collberg et al.~\cite{collberg1997taxonomy}, combining lexical,
+%   control flow, and data transformations with cryptographic protection
+%   following NIST standards~\cite{nist2007gcm,nist2010pbkdf}."
+%
+% ============================================
