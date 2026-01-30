@@ -68,7 +68,7 @@ python examples/tests.py
 
 - Run `python examples/tests.py` before submitting
 - Add tests for new features
-- Ensure all tests pass on Python 3.9+
+- Ensure all tests pass on Python 3.10+
 
 ## Security
 
