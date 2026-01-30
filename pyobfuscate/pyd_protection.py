@@ -16,165 +16,21 @@ Features:
 - Memory protection (sensitive data clearing)
 """
 
-import ast
 import base64
 import hashlib
-import hmac
 import marshal
 import os
-import platform
 import shutil
 import struct
 import subprocess
 import sys
 import tempfile
-import uuid
 import zlib
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List
 
-# Try to use cryptography library for AES, fallback to pure Python implementation
-try:
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-    from cryptography.hazmat.primitives import hashes
-    HAS_CRYPTOGRAPHY = True
-except ImportError:
-    HAS_CRYPTOGRAPHY = False
-
-
-class CryptoEngine:
-    """
-    AES-256-GCM encryption with PBKDF2 key derivation.
-
-    If cryptography library is not available, falls back to a stronger
-    XOR-based stream cipher with multiple rounds.
-    """
-
-    SALT_SIZE = 16
-    NONCE_SIZE = 12
-    KEY_SIZE = 32
-    ITERATIONS = 100000  # PBKDF2 iterations
-
-    def __init__(self, key: bytes):
-        self.master_key = key
-        self._salt = os.urandom(self.SALT_SIZE)
-
-    def _derive_key(self, salt: bytes) -> bytes:
-        """Derive encryption key using PBKDF2-HMAC-SHA256."""
-        if HAS_CRYPTOGRAPHY:
-            kdf = PBKDF2HMAC(
-                algorithm=hashes.SHA256(),
-                length=self.KEY_SIZE,
-                salt=salt,
-                iterations=self.ITERATIONS,
-            )
-            return kdf.derive(self.master_key)
-        else:
-            # Pure Python PBKDF2 implementation
-            return self._pbkdf2_sha256(self.master_key, salt, self.ITERATIONS, self.KEY_SIZE)
-
-    def _pbkdf2_sha256(self, password: bytes, salt: bytes, iterations: int, dklen: int) -> bytes:
-        """Pure Python PBKDF2-HMAC-SHA256 implementation."""
-        def _hmac_sha256(key: bytes, msg: bytes) -> bytes:
-            return hmac.new(key, msg, hashlib.sha256).digest()
-
-        def _xor_bytes(a: bytes, b: bytes) -> bytes:
-            return bytes(x ^ y for x, y in zip(a, b))
-
-        dk = b''
-        block_num = 1
-        while len(dk) < dklen:
-            u = _hmac_sha256(password, salt + struct.pack('>I', block_num))
-            result = u
-            for _ in range(iterations - 1):
-                u = _hmac_sha256(password, u)
-                result = _xor_bytes(result, u)
-            dk += result
-            block_num += 1
-        return dk[:dklen]
-
-    def encrypt(self, data: bytes) -> bytes:
-        """
-        Encrypt data using AES-256-GCM.
-
-        Returns: salt (16) + nonce (12) + ciphertext + tag (16)
-        """
-        salt = os.urandom(self.SALT_SIZE)
-        nonce = os.urandom(self.NONCE_SIZE)
-        key = self._derive_key(salt)
-
-        if HAS_CRYPTOGRAPHY:
-            aesgcm = AESGCM(key)
-            ciphertext = aesgcm.encrypt(nonce, data, None)  # includes auth tag
-        else:
-            # Fallback: ChaCha20-like stream cipher with HMAC authentication
-            ciphertext = self._fallback_encrypt(key, nonce, data)
-
-        return salt + nonce + ciphertext
-
-    def _fallback_encrypt(self, key: bytes, nonce: bytes, data: bytes) -> bytes:
-        """
-        Fallback encryption using a stream cipher construction.
-        Uses CTR mode with HMAC-SHA256 for authentication.
-        """
-        # Generate keystream using counter mode
-        keystream = self._generate_keystream(key, nonce, len(data))
-
-        # XOR data with keystream
-        ciphertext = bytes(d ^ k for d, k in zip(data, keystream))
-
-        # Add HMAC for authentication
-        auth_key = hashlib.sha256(key + b'auth').digest()
-        tag = hmac.new(auth_key, nonce + ciphertext, hashlib.sha256).digest()[:16]
-
-        return ciphertext + tag
-
-    def _generate_keystream(self, key: bytes, nonce: bytes, length: int) -> bytes:
-        """Generate keystream using counter mode."""
-        keystream = bytearray()
-        counter = 0
-        while len(keystream) < length:
-            block_input = key + nonce + struct.pack('<Q', counter)
-            block = hashlib.sha256(block_input).digest()
-            keystream.extend(block)
-            counter += 1
-        return bytes(keystream[:length])
-
-    def decrypt(self, data: bytes) -> bytes:
-        """
-        Decrypt data encrypted with AES-256-GCM.
-
-        Input: salt (16) + nonce (12) + ciphertext + tag (16)
-        """
-        salt = data[:self.SALT_SIZE]
-        nonce = data[self.SALT_SIZE:self.SALT_SIZE + self.NONCE_SIZE]
-        ciphertext = data[self.SALT_SIZE + self.NONCE_SIZE:]
-
-        key = self._derive_key(salt)
-
-        if HAS_CRYPTOGRAPHY:
-            aesgcm = AESGCM(key)
-            return aesgcm.decrypt(nonce, ciphertext, None)
-        else:
-            return self._fallback_decrypt(key, nonce, ciphertext)
-
-    def _fallback_decrypt(self, key: bytes, nonce: bytes, ciphertext_with_tag: bytes) -> bytes:
-        """Fallback decryption with HMAC verification."""
-        ciphertext = ciphertext_with_tag[:-16]
-        tag = ciphertext_with_tag[-16:]
-
-        # Verify HMAC
-        auth_key = hashlib.sha256(key + b'auth').digest()
-        expected_tag = hmac.new(auth_key, nonce + ciphertext, hashlib.sha256).digest()[:16]
-
-        if not hmac.compare_digest(tag, expected_tag):
-            raise ValueError("Authentication failed - data may be corrupted or tampered")
-
-        # Decrypt
-        keystream = self._generate_keystream(key, nonce, len(ciphertext))
-        return bytes(c ^ k for c, k in zip(ciphertext, keystream))
+from .crypto import CryptoEngine, get_machine_id
 
 
 class PydRuntimeProtector:
@@ -233,35 +89,7 @@ class PydRuntimeProtector:
         Returns:
             A hash of machine-specific information.
         """
-        machine_info = []
-        machine_info.append(platform.node())
-        machine_info.append(platform.machine())
-        machine_info.append(platform.processor())
-
-        try:
-            mac = uuid.getnode()
-            if mac != uuid.getnode():
-                mac = 0
-            machine_info.append(str(mac))
-        except:
-            pass
-
-        if sys.platform == 'win32':
-            try:
-                result = subprocess.run(
-                    ['wmic', 'diskdrive', 'get', 'serialnumber'],
-                    capture_output=True, text=True, timeout=5
-                )
-                if result.returncode == 0:
-                    lines = [l.strip() for l in result.stdout.split('\n')
-                            if l.strip() and l.strip() != 'SerialNumber']
-                    if lines:
-                        machine_info.append(lines[0])
-            except:
-                pass
-
-        combined = '|'.join(machine_info)
-        return hashlib.sha256(combined.encode()).hexdigest()[:32]
+        return get_machine_id()
 
     def _generate_key(self) -> bytes:
         """Generate a random encryption key."""

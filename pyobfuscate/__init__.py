@@ -8,7 +8,8 @@ multiple obfuscation techniques to protect your Python source code.
 from .obfuscator import Obfuscator
 from .runtime_protection import RuntimeProtector, protect
 from .pyd_protection import PydRuntimeProtector
+from .crypto import get_machine_id
 from .cli import main
 
 __version__ = "1.0.0"
-__all__ = ["Obfuscator", "RuntimeProtector", "PydRuntimeProtector", "protect", "main"]
+__all__ = ["Obfuscator", "RuntimeProtector", "PydRuntimeProtector", "protect", "get_machine_id", "main"]
