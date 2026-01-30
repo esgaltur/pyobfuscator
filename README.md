@@ -6,7 +6,18 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Security: 50+ Features](https://img.shields.io/badge/Security-50%2B%20Features-green.svg)](https://github.com/esgaltur/pyobfuscator#features)
 
-A comprehensive, license-free Python code obfuscation library with enterprise-grade runtime protection.
+A comprehensive, **100% free and open source** Python code obfuscation library with enterprise-grade runtime protection. PyObfuscate itself has **no trial, no paid tiers, no licensing restrictions** - it's completely free under the MIT License.
+
+## ⚠️ Important: Understanding the Terminology
+
+| Term | What it means |
+|------|---------------|
+| **PyObfuscate** | This tool. 100% free, open source, MIT License. No restrictions. |
+| **Your Code** | The Python code YOU want to protect using PyObfuscate. |
+| **Protected Code** | Your code after PyObfuscate processes it. |
+| **Licensing/DRM Features** | Tools for YOU to add restrictions to YOUR code (e.g., trial periods, machine binding). These do NOT apply to PyObfuscate itself. |
+
+> **Example:** You can use PyObfuscate (free) to create a trial version of your commercial app that expires in 30 days. The "trial" is for YOUR app, not PyObfuscate.
 
 ## Features
 
@@ -69,11 +80,13 @@ A comprehensive, license-free Python code obfuscation library with enterprise-gr
 - **HMAC Authentication**: Cryptographic authentication of encrypted data
 - **Encrypted Error Messages**: All error strings are XOR-encrypted
 
-### Licensing & DRM
-- **License Expiration**: Time-based restrictions with configurable dates
-- **Machine Binding**: Lock code execution to specific hardware (CPU, MAC, disk serial)
-- **Domain Lock**: Restrict execution to specific hostnames/domains
-- **Network License**: Optional online license validation with server
+### Licensing & DRM (Features to Protect YOUR Code)
+> 🆓 **PyObfuscate is free.** These features let you add licensing to YOUR protected applications.
+
+- **License Expiration**: Add time limits to YOUR protected code (e.g., 30-day trial)
+- **Machine Binding**: Lock YOUR code to specific hardware (CPU, MAC, disk serial)
+- **Domain Lock**: Restrict YOUR code to specific hostnames/domains
+- **Network License**: Add online license validation to YOUR apps
 - **Watermarking**: Hidden identifiers for tracking unauthorized distribution
 - **Honey Tokens**: Fake decryption keys to detect tampering attempts
 
@@ -265,7 +278,9 @@ __pyobfuscate__(__name__, __file__, b'UFlEMDAwMDEAA...')
 
 ## Runtime Protection API
 
-### Basic Usage
+> 🆓 **Reminder:** PyObfuscate is free. The examples below show how to add licensing restrictions to YOUR code.
+
+### Basic Usage (No Restrictions on Your Code)
 
 ```python
 from pyobfuscate import RuntimeProtector
@@ -275,21 +290,21 @@ protector = RuntimeProtector(license_info="My App v1.0")
 protected_code, runtime_module = protector.protect_source(source_code, "app.py")
 ```
 
-### With Expiration Date
+### With Expiration Date (Create Trial Versions of YOUR App)
 
 ```python
 from datetime import datetime, timedelta
 from pyobfuscate import RuntimeProtector
 
-# Protection with 30-day expiration
+# Create a 30-day trial version of YOUR app
 protector = RuntimeProtector(
-    license_info="Trial License",
+    license_info="My App - Trial Version",
     expiration_date=datetime.now() + timedelta(days=30)
 )
 protected_code, runtime_module = protector.protect_source(source_code)
 ```
 
-### Machine Binding
+### Machine Binding (Lock YOUR Code to Specific Computers)
 
 ```python
 from pyobfuscate import RuntimeProtector
@@ -306,15 +321,15 @@ protector = RuntimeProtector(
 protected_code, runtime_module = protector.protect_source(source_code)
 ```
 
-### Full Protection (All Features)
+### Full Protection (All Features for YOUR Code)
 
 ```python
 from datetime import datetime, timedelta
 from pyobfuscate import RuntimeProtector
 
-# Full protection with all security features
+# Full protection with all security features for YOUR app
 protector = RuntimeProtector(
-    license_info="Enterprise License",
+    license_info="My App - Enterprise Edition",
     expiration_date=datetime.now() + timedelta(days=365),
     allowed_machines=[RuntimeProtector.get_machine_id()],
     anti_debug=True,  # Detect debuggers
@@ -331,14 +346,14 @@ with open(f"pyobfuscate_runtime_{protector.runtime_id}.py", "w") as f:
     f.write(runtime_module)
 ```
 
-### PYD Protection (Compiled Runtime)
+### PYD Protection (Compiled Runtime for YOUR Code)
 
 ```python
 from pyobfuscate import PydRuntimeProtector
 
-# Create PYD protector with all features
+# Create PYD protector with all features for YOUR app
 protector = PydRuntimeProtector(
-    license_info="Premium License",
+    license_info="My App - Premium Edition",
     expiration_date=datetime.now() + timedelta(days=365),
     allowed_machines=[PydRuntimeProtector.get_machine_id()],
     anti_debug=True
@@ -350,11 +365,11 @@ print(f"Protected file: {result['protected']}")
 print(f"PYD runtime: {result['pyd']}")
 ```
 
-### Protection Options
+### Protection Options (for YOUR Code)
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `license_info` | str | "PyObfuscate..." | License/author info embedded in protected files |
+| `license_info` | str | "PyObfuscate..." | License/author info embedded in YOUR protected files |
 | `encryption_key` | bytes | Auto-generated | Custom 32-byte encryption key |
 | `expiration_date` | datetime | None | Optional expiration date for time-limited licenses |
 | `allowed_machines` | list[str] | [] | List of allowed machine IDs for hardware binding |
