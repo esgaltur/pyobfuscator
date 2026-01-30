@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Runtime Protection with PYD (Cython-compiled) runtime module.
 

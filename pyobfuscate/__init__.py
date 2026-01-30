@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 PyObfuscate - A Python code obfuscation library
 

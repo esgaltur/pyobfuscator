@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Runtime Protection Module for PyObfuscate.
 

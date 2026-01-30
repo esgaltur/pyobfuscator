@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Tests for PyObfuscate."""
 import pytest
 import sys

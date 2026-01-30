@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Additional obfuscation transformers for advanced protection.
 """

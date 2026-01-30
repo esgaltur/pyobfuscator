@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Entry point for running pyobfuscate as a module: python -m pyobfuscate
 """
