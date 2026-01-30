@@ -491,37 +491,228 @@ def {v['csv']}():
     2: lambda _a, _b: _a if {v['op']}() else _b,
 }}
 
-# Simple code virtualization - virtual machine for basic operations
+# ============== COMPLEX CODE VIRTUALIZATION ENGINE ==============
+# Stack-based VM with randomized opcodes, self-modifying code, and anti-analysis
+
 class {v['vm']}:
-    _ops = {{
-        'xor': lambda a, b: a ^ b,
-        'add': lambda a, b: (a + b) & 0xFF,
-        'sub': lambda a, b: (a - b) & 0xFF,
-        'rot': lambda a, n: ((a << n) | (a >> (8 - n))) & 0xFF,
+    # Advanced virtualization: randomized opcodes, stack-based, self-modifying, anti-analysis
+    
+    # Randomized opcode table (generated at runtime creation)
+    _OPMAP = {{
+        # Stack operations
+        0x{format(random.randint(16, 255), '02x')}: 'PUSH',
+        0x{format(random.randint(16, 255), '02x')}: 'POP',
+        0x{format(random.randint(16, 255), '02x')}: 'DUP',
+        0x{format(random.randint(16, 255), '02x')}: 'SWAP',
+        0x{format(random.randint(16, 255), '02x')}: 'ROT3',
+        # Arithmetic
+        0x{format(random.randint(16, 255), '02x')}: 'ADD',
+        0x{format(random.randint(16, 255), '02x')}: 'SUB',
+        0x{format(random.randint(16, 255), '02x')}: 'MUL',
+        0x{format(random.randint(16, 255), '02x')}: 'DIV',
+        0x{format(random.randint(16, 255), '02x')}: 'MOD',
+        # Bitwise
+        0x{format(random.randint(16, 255), '02x')}: 'XOR',
+        0x{format(random.randint(16, 255), '02x')}: 'AND',
+        0x{format(random.randint(16, 255), '02x')}: 'OR',
+        0x{format(random.randint(16, 255), '02x')}: 'NOT',
+        0x{format(random.randint(16, 255), '02x')}: 'SHL',
+        0x{format(random.randint(16, 255), '02x')}: 'SHR',
+        0x{format(random.randint(16, 255), '02x')}: 'ROTL',
+        0x{format(random.randint(16, 255), '02x')}: 'ROTR',
+        # Control flow
+        0x{format(random.randint(16, 255), '02x')}: 'JMP',
+        0x{format(random.randint(16, 255), '02x')}: 'JZ',
+        0x{format(random.randint(16, 255), '02x')}: 'JNZ',
+        0x{format(random.randint(16, 255), '02x')}: 'JGT',
+        0x{format(random.randint(16, 255), '02x')}: 'JLT',
+        0x{format(random.randint(16, 255), '02x')}: 'CALL',
+        0x{format(random.randint(16, 255), '02x')}: 'RET',
+        # Memory
+        0x{format(random.randint(16, 255), '02x')}: 'LOAD',
+        0x{format(random.randint(16, 255), '02x')}: 'STORE',
+        0x{format(random.randint(16, 255), '02x')}: 'LOADB',
+        0x{format(random.randint(16, 255), '02x')}: 'STOREB',
+        # Special
+        0x{format(random.randint(16, 255), '02x')}: 'NOP',
+        0x{format(random.randint(16, 255), '02x')}: 'HALT',
+        0x{format(random.randint(16, 255), '02x')}: 'MUTATE',
+        0x{format(random.randint(16, 255), '02x')}: 'CHECK',
+        0x{format(random.randint(16, 255), '02x')}: 'TRAP',
     }}
+    
+    _REVMAP = {{v: k for k, v in _OPMAP.items()}}
+    
+    def __init__(self):
+        self._stk = []
+        self._mem = bytearray(4096)
+        self._cstk = []
+        self._pc = 0
+        self._dat = bytearray()
+        self._run = True
+        self._mut = 0
+        self._cnt = 0
+        
+    def _aa(self):
+        # Anti-analysis check
+        self._cnt += 1
+        if self._cnt > 100000: return True
+        if {v['sy']}.gettrace() is not None: return True
+        return False
+    
+    def _mo(self, _a):
+        # Self-modifying opcode
+        if _a < len(self._bc):
+            self._bc[_a] ^= (self._mut & 0xFF)
+            self._mut += 1
+    
+    def _pu(self, _v): self._stk.append(_v & 0xFFFFFFFF)
+    def _po(self): return self._stk.pop() if self._stk else 0
+    def _pk(self): return self._stk[-1] if self._stk else 0
+    
+    def _r8(self):
+        if self._pc < len(self._bc):
+            _v = self._bc[self._pc]
+            self._pc += 1
+            return _v
+        return 0
+    
+    def _r16(self):
+        return self._r8() | (self._r8() << 8)
+    
+    def _r32(self):
+        return self._r8() | (self._r8() << 8) | (self._r8() << 16) | (self._r8() << 24)
+    
+    def execute(self, _bytecode, _data):
+        self._bc = bytearray(_bytecode)
+        self._dat = bytearray(_data)
+        self._pc = 0
+        self._run = True
+        self._stk = []
+        self._cnt = 0
+        
+        while self._run and self._pc < len(self._bc):
+            if self._aa(): return bytes([0xFF] * len(_data))
+            
+            _op = self._r8()
+            _nm = self._OPMAP.get(_op, 'NOP')
+            
+            if _nm == 'PUSH': self._pu(self._r32())
+            elif _nm == 'POP': self._po()
+            elif _nm == 'DUP': self._pu(self._pk())
+            elif _nm == 'SWAP':
+                if len(self._stk) >= 2:
+                    self._stk[-1], self._stk[-2] = self._stk[-2], self._stk[-1]
+            elif _nm == 'ROT3':
+                if len(self._stk) >= 3:
+                    _a, _b, _c = self._stk[-3:]
+                    self._stk[-3:] = [_b, _c, _a]
+            elif _nm == 'ADD':
+                _b, _a = self._po(), self._po()
+                self._pu(_a + _b)
+            elif _nm == 'SUB':
+                _b, _a = self._po(), self._po()
+                self._pu(_a - _b)
+            elif _nm == 'MUL':
+                _b, _a = self._po(), self._po()
+                self._pu(_a * _b)
+            elif _nm == 'DIV':
+                _b, _a = self._po(), self._po()
+                self._pu(_a // _b if _b else 0)
+            elif _nm == 'MOD':
+                _b, _a = self._po(), self._po()
+                self._pu(_a % _b if _b else 0)
+            elif _nm == 'XOR':
+                _b, _a = self._po(), self._po()
+                self._pu(_a ^ _b)
+            elif _nm == 'AND':
+                _b, _a = self._po(), self._po()
+                self._pu(_a & _b)
+            elif _nm == 'OR':
+                _b, _a = self._po(), self._po()
+                self._pu(_a | _b)
+            elif _nm == 'NOT': self._pu(~self._po() & 0xFFFFFFFF)
+            elif _nm == 'SHL':
+                _n, _a = self._po(), self._po()
+                self._pu((_a << _n) & 0xFFFFFFFF)
+            elif _nm == 'SHR':
+                _n, _a = self._po(), self._po()
+                self._pu(_a >> _n)
+            elif _nm == 'ROTL':
+                _n, _a = self._po() & 31, self._po()
+                self._pu(((_a << _n) | (_a >> (32 - _n))) & 0xFFFFFFFF)
+            elif _nm == 'ROTR':
+                _n, _a = self._po() & 31, self._po()
+                self._pu(((_a >> _n) | (_a << (32 - _n))) & 0xFFFFFFFF)
+            elif _nm == 'JMP': self._pc = self._r16()
+            elif _nm == 'JZ':
+                _addr = self._r16()
+                if self._po() == 0: self._pc = _addr
+            elif _nm == 'JNZ':
+                _addr = self._r16()
+                if self._po() != 0: self._pc = _addr
+            elif _nm == 'JGT':
+                _addr = self._r16()
+                if self._po() > 0: self._pc = _addr
+            elif _nm == 'JLT':
+                _addr = self._r16()
+                _v = self._po()
+                if _v != 0 and (_v & 0x80000000): self._pc = _addr
+            elif _nm == 'CALL':
+                _addr = self._r16()
+                self._cstk.append(self._pc)
+                self._pc = _addr
+            elif _nm == 'RET':
+                if self._cstk: self._pc = self._cstk.pop()
+                else: self._run = False
+            elif _nm == 'LOAD':
+                _addr = self._po()
+                self._pu(self._mem[_addr] if _addr < len(self._mem) else 0)
+            elif _nm == 'STORE':
+                _addr, _val = self._po(), self._po()
+                if _addr < len(self._mem): self._mem[_addr] = _val & 0xFF
+            elif _nm == 'LOADB':
+                _idx = self._po()
+                self._pu(self._dat[_idx] if _idx < len(self._dat) else 0)
+            elif _nm == 'STOREB':
+                _idx, _val = self._po(), self._po()
+                if _idx < len(self._dat): self._dat[_idx] = _val & 0xFF
+            elif _nm == 'NOP': pass
+            elif _nm == 'HALT': self._run = False
+            elif _nm == 'MUTATE': self._mo(self._r16())
+            elif _nm == 'CHECK': self._pu(1 if {v['sy']}.gettrace() else 0)
+            elif _nm == 'TRAP':
+                for _i in range(len(self._dat)): self._dat[_i] ^= 0xFF
+                self._run = False
+            
+            self._cnt += 1
+        
+        return bytes(self._dat)
+    
     @classmethod
-    def run(cls, _bc, _data):
-        _r = bytearray(_data)
-        _pc = 0
-        while _pc < len(_bc):
-            _op = _bc[_pc]
-            if _op == 0x01:  # XOR with next byte
-                _k = _bc[_pc + 1]
-                _r = bytearray(cls._ops['xor'](b, _k) for b in _r)
-                _pc += 2
-            elif _op == 0x02:  # ADD
-                _k = _bc[_pc + 1]
-                _r = bytearray(cls._ops['add'](b, _k) for b in _r)
-                _pc += 2
-            elif _op == 0x03:  # SUB
-                _k = _bc[_pc + 1]
-                _r = bytearray(cls._ops['sub'](b, _k) for b in _r)
-                _pc += 2
-            elif _op == 0xFF:  # END
-                break
-            else:
-                _pc += 1
-        return bytes(_r)
+    def compile_xor(cls, _key):
+        # Compile XOR transformation to VM bytecode
+        _bc = bytearray()
+        _OP = cls._REVMAP
+        for _i, _k in enumerate(_key):
+            _bc.append(_OP['PUSH'])
+            _bc.extend([_i & 0xFF, (_i >> 8) & 0xFF, (_i >> 16) & 0xFF, (_i >> 24) & 0xFF])
+            _bc.append(_OP['DUP'])
+            _bc.append(_OP['LOADB'])
+            _bc.append(_OP['PUSH'])
+            _bc.extend([_k, 0, 0, 0])
+            _bc.append(_OP['XOR'])
+            _bc.append(_OP['SWAP'])
+            _bc.append(_OP['STOREB'])
+        _bc.append(_OP['HALT'])
+        return bytes(_bc)
+    
+    @classmethod 
+    def transform(cls, _data, _key):
+        # Transform data using VM-based XOR
+        _v = cls()
+        _ek = (_key * ((len(_data) // len(_key)) + 1))[:len(_data)]
+        return _v.execute(cls.compile_xor(_ek), _data)
 
 # Import hook for protected modules
 class {v['ih']}:
@@ -774,8 +965,13 @@ def __pyobfuscate__(_nm, _fl, _pl):
         _bc = {v['cs3']}(_cp)
         _sk = {v['b64']}.b64decode(_mt.get('_sk', ''))
         if _sk:
-            # Use code splitting for descrambling
-            _bc = {v['cs2']}(_bc, _sk)
+            # Use VM-based descrambling for maximum protection
+            # Falls back to simple XOR if VM execution fails
+            try:
+                _bc = {v['vm']}.transform(_bc, _sk)
+            except:
+                # Fallback to simple XOR (compatible with older protected files)
+                _bc = {v['cs2']}(_bc, _sk)
         
         _co = {v['ml']}.loads(_bc)
         _gl = {{'__name__': _nm, '__file__': _fl, '__builtins__': __builtins__}}
