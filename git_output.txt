@@ -1,9 +1,0 @@
-﻿branch 'main' set up to track 'origin/main'.
-git : To https://github.com/esgaltur/pyobfuscator.git
-At line:1 char:48
-+ ... 896\PycharmProjects\pyobfuscate; git push -u origin main 2>&1 | Out-F ...
-+                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (To https://gith...yobfuscator.git:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-   e31cfa7..9bc996b  main -> main

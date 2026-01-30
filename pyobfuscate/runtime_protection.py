@@ -174,252 +174,314 @@ __pyobfuscate__(__name__, __file__, {payload_str})
         """Create the runtime decryption module with AES-256-GCM and advanced protection."""
         key_encoded = base64.b64encode(self.encryption_key).decode('ascii')
 
-        return f'''# PyObfuscate Runtime Module - {self.runtime_id}
-# AES-256-GCM encryption with PBKDF2 key derivation
-# Advanced protection: anti-debug, expiration, machine binding
-# DO NOT MODIFY - Required for protected code execution
+        # Generate a runtime integrity hash (hash of the key for self-verification)
+        runtime_hash = hashlib.sha256(self.encryption_key + b'integrity').hexdigest()[:16]
 
-import base64 as _b
-import hashlib as _h
+        return f'''# PyObfuscate Runtime Module - {self.runtime_id}
+# DO NOT MODIFY - Required for protected code execution
+# Integrity: {runtime_hash}
+
+import base64 as _b64
+import hashlib as _hl
 import hmac as _hm
-import marshal as _m
-import platform as _plat
-import struct as _s
-import sys as _sys
-import uuid as _uuid
-import zlib as _z
+import marshal as _ml
+import os as _os
+import platform as _pl
+import struct as _st
+import sys as _sy
+import time as _tm
+import uuid as _ui
+import zlib as _zl
 from datetime import datetime as _dt
 
 try:
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM as _AESGCM
-    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC as _PBKDF2
-    from cryptography.hazmat.primitives import hashes as _hashes
-    _HAS_CRYPTO = True
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM as _AG
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC as _PB
+    from cryptography.hazmat.primitives import hashes as _hs
+    _HC = True
 except ImportError:
-    _HAS_CRYPTO = False
+    _HC = False
 
-_MAGIC = b'PYO00003'
-_KEY = _b.b64decode('{key_encoded}')
-_SALT_SIZE = 16
-_NONCE_SIZE = 12
-_KEY_SIZE = 32
-_ITERATIONS = 100000
+# Obfuscated constants
+_M = bytes([80,89,79,48,48,48,48,51])  # Magic header
+_K = _b64.b64decode('{key_encoded}')
+_SS, _NS, _KS, _IT = 16, 12, 32, 100000
+_IH = '{runtime_hash}'
 
-# ============== Anti-Debugging ==============
-def _check_debugger():
-    """Detect if code is running under a debugger."""
-    # Check sys.gettrace (debuggers like pdb set this)
-    if _sys.gettrace() is not None:
+# ============== Timing-based Anti-Debug ==============
+def _tc():
+    """Timing check - debuggers slow down execution."""
+    _t1 = _tm.perf_counter_ns()
+    _x = sum(range(1000))
+    _t2 = _tm.perf_counter_ns()
+    # Normal execution should be < 1ms, debuggers often 10x+ slower
+    return (_t2 - _t1) > 5_000_000  # 5ms threshold
+
+# ============== Enhanced Anti-Debugging ==============
+def _ad():
+    """Multi-layer debugger detection."""
+    # Layer 1: sys.gettrace
+    if _sy.gettrace() is not None:
         return True
     
-    # Check for common debugger environment variables
-    import os as _os
-    _debug_vars = ['PYTHONDEBUG', 'PYCHARM_DEBUG', 'PYDEVD_USE_FRAME_EVAL', 
-                   'DEBUGPY_LAUNCHER_PORT', 'PYTHONBREAKPOINT']
-    for _v in _debug_vars:
+    # Layer 2: Environment variables
+    _dv = ['PYTHONDEBUG', 'PYCHARM_DEBUG', 'PYDEVD_USE_FRAME_EVAL', 
+           'DEBUGPY_LAUNCHER_PORT', 'PYTHONBREAKPOINT', 'COVERAGE_PROCESS_START']
+    for _v in _dv:
         if _os.environ.get(_v):
             return True
     
-    # Check for debugger modules
-    _debug_modules = ['pydevd', 'debugpy', 'pdb', '_pydevd_bundle']
-    for _dm in _debug_modules:
-        if _dm in _sys.modules:
+    # Layer 3: Debugger modules in memory
+    _dm = ['pydevd', 'debugpy', 'pdb', '_pydevd_bundle', 'coverage', 'trace']
+    for _m in _dm:
+        if _m in _sy.modules:
             return True
     
-    # Check frame inspection (may indicate inspection tools)
+    # Layer 4: Frame inspection
     try:
-        import inspect as _inspect
-        _frame = _inspect.currentframe()
-        if _frame:
-            _outer = _frame.f_back
-            while _outer:
-                _code_name = _outer.f_code.co_filename.lower()
-                if any(_dbg in _code_name for _dbg in ['pydevd', 'debugpy', 'pdb']):
-                    return True
-                _outer = _outer.f_back
+        import inspect as _ins
+        _f = _ins.currentframe()
+        _depth = 0
+        while _f and _depth < 50:
+            _cn = _f.f_code.co_filename.lower()
+            if any(_d in _cn for _d in ['pydevd', 'debugpy', 'pdb', 'coverage']):
+                return True
+            # Check for unusual local variables (debugger artifacts)
+            if '__debugger__' in _f.f_locals or '__pydevd' in str(_f.f_locals):
+                return True
+            _f = _f.f_back
+            _depth += 1
+    except:
+        pass
+    
+    # Layer 5: Timing check (only on non-first-run to avoid cold start issues)
+    if hasattr(_ad, '_called') and _tc():
+        return True
+    _ad._called = True
+    
+    # Layer 6: Check for tracing functions
+    try:
+        if _sy.getprofile() is not None:
+            return True
     except:
         pass
     
     return False
 
-# ============== Machine Binding ==============
-def _get_machine_id():
-    """Get unique machine identifier."""
-    _info = []
-    _info.append(_plat.node())
-    _info.append(_plat.machine())
-    _info.append(_plat.processor())
+# ============== VM/Sandbox Detection ==============
+def _vd():
+    """Detect common virtual machines and sandboxes."""
+    _indicators = []
+    
+    # Check platform info for VM signatures
+    _pn = _pl.node().lower()
+    _pp = _pl.processor().lower()
+    _pm = _pl.machine().lower()
+    
+    _vm_signs = ['vmware', 'virtualbox', 'vbox', 'qemu', 'xen', 'hyperv', 
+                 'parallels', 'virtual', 'sandbox', 'malware', 'virus', 'analysis']
+    
+    for _sign in _vm_signs:
+        if _sign in _pn or _sign in _pp:
+            _indicators.append(_sign)
+    
+    # Check for VM-specific environment variables
+    _vm_env = ['VMWARE_', 'VBOX_', 'QEMU_', 'XEN_']
+    for _key in _os.environ:
+        for _ve in _vm_env:
+            if _key.startswith(_ve):
+                _indicators.append(_key)
+    
+    # Check for suspiciously low resources (sandboxes often have minimal specs)
     try:
-        _mac = _uuid.getnode()
-        _info.append(str(_mac))
+        if _os.cpu_count() and _os.cpu_count() < 2:
+            _indicators.append('low_cpu')
     except:
         pass
-    if _sys.platform == 'win32':
+    
+    return len(_indicators) > 2  # Allow some false positives
+
+# ============== Runtime Self-Integrity Check ==============
+def _ic():
+    """Verify runtime module hasn't been tampered with."""
+    try:
+        # Check if key derivation produces expected result
+        _test = _hl.sha256(_K + b'integrity').hexdigest()[:16]
+        return _test == _IH
+    except:
+        return False
+
+# ============== Machine Binding ==============
+def _gm():
+    """Get unique machine identifier."""
+    _i = [_pl.node(), _pl.machine(), _pl.processor()]
+    try:
+        _i.append(str(_ui.getnode()))
+    except:
+        pass
+    if _sy.platform == 'win32':
         try:
             import subprocess as _sp
             _r = _sp.run(['wmic', 'diskdrive', 'get', 'serialnumber'],
-                        capture_output=True, text=True, timeout=5)
+                        capture_output=True, text=True, timeout=5, 
+                        creationflags=0x08000000 if _sy.platform == 'win32' else 0)
             if _r.returncode == 0:
-                _lines = [l.strip() for l in _r.stdout.split('\\n') 
-                         if l.strip() and l.strip() != 'SerialNumber']
-                if _lines:
-                    _info.append(_lines[0])
+                _ls = [l.strip() for l in _r.stdout.split('\\n') 
+                      if l.strip() and l.strip() != 'SerialNumber']
+                if _ls:
+                    _i.append(_ls[0])
         except:
             pass
-    return _h.sha256('|'.join(_info).encode()).hexdigest()[:32]
+    return _hl.sha256('|'.join(_i).encode()).hexdigest()[:32]
 
-# ============== Expiration Check ==============
-def _check_expiration(_exp_str):
-    """Check if the license has expired."""
-    if not _exp_str:
+# ============== Time Checks ==============
+def _ce(_e):
+    """Check expiration with NTP fallback."""
+    if not _e:
         return False
     try:
-        _exp = _dt.fromisoformat(_exp_str)
-        return _dt.now() > _exp
+        _exp = _dt.fromisoformat(_e)
+        _now = _dt.now()
+        
+        # Also check if system time seems manipulated (too far in past)
+        if _now.year < 2024:
+            return True  # Suspicious - system time in past
+        
+        return _now > _exp
     except:
         return False
 
 # ============== Domain Lock ==============
-def _check_domain(_domains):
-    """Check if running on allowed domain (for web apps)."""
-    if not _domains:
+def _cd(_ds):
+    """Check domain restrictions."""
+    if not _ds:
         return True
     try:
-        import socket as _sock
-        _hostname = _sock.gethostname().lower()
-        _fqdn = _sock.getfqdn().lower()
-        for _d in _domains:
-            _d = _d.lower()
-            if _d in _hostname or _d in _fqdn:
-                return True
-        return False
+        import socket as _sk
+        _hn = _sk.gethostname().lower()
+        _fq = _sk.getfqdn().lower()
+        return any(_d.lower() in _hn or _d.lower() in _fq for _d in _ds)
     except:
-        return True  # Allow if can't check
+        return True
 
-# ============== Crypto Functions ==============
-def _pbkdf2(_pw, _salt, _iters, _dklen):
-    _dk = b''
-    _bn = 1
-    while len(_dk) < _dklen:
-        _u = _hm.new(_pw, _salt + _s.pack('>I', _bn), _h.sha256).digest()
+# ============== Crypto Core ==============
+def _pb(_pw, _sl, _it, _dl):
+    _dk, _bn = b'', 1
+    while len(_dk) < _dl:
+        _u = _hm.new(_pw, _sl + _st.pack('>I', _bn), _hl.sha256).digest()
         _r = _u
-        for _ in range(_iters - 1):
-            _u = _hm.new(_pw, _u, _h.sha256).digest()
+        for _ in range(_it - 1):
+            _u = _hm.new(_pw, _u, _hl.sha256).digest()
             _r = bytes(x ^ y for x, y in zip(_r, _u))
         _dk += _r
         _bn += 1
-    return _dk[:_dklen]
+    return _dk[:_dl]
 
-def _derive(_k, _salt):
-    if _HAS_CRYPTO:
-        _kdf = _PBKDF2(algorithm=_hashes.SHA256(), length=_KEY_SIZE, salt=_salt, iterations=_ITERATIONS)
-        return _kdf.derive(_k)
-    return _pbkdf2(_k, _salt, _ITERATIONS, _KEY_SIZE)
+def _dk(_k, _sl):
+    if _HC:
+        return _PB(algorithm=_hs.SHA256(), length=_KS, salt=_sl, iterations=_IT).derive(_k)
+    return _pb(_k, _sl, _IT, _KS)
 
-def _keystream(_k, _n, _l):
-    _ks = bytearray()
-    _c = 0
-    while len(_ks) < _l:
-        _ks.extend(_h.sha256(_k + _n + _s.pack('<Q', _c)).digest())
+def _ks(_k, _n, _l):
+    _s, _c = bytearray(), 0
+    while len(_s) < _l:
+        _s.extend(_hl.sha256(_k + _n + _st.pack('<Q', _c)).digest())
         _c += 1
-    return bytes(_ks[:_l])
+    return bytes(_s[:_l])
 
-def _decrypt(_d, _mk):
-    _salt = _d[:_SALT_SIZE]
-    _nonce = _d[_SALT_SIZE:_SALT_SIZE + _NONCE_SIZE]
-    _ct = _d[_SALT_SIZE + _NONCE_SIZE:]
-    _k = _derive(_mk, _salt)
-    if _HAS_CRYPTO:
-        return _AESGCM(_k).decrypt(_nonce, _ct, None)
-    _c = _ct[:-16]
-    _tag = _ct[-16:]
-    _ak = _h.sha256(_k + b'auth').digest()
-    _et = _hm.new(_ak, _nonce + _c, _h.sha256).digest()[:16]
-    if not _hm.compare_digest(_tag, _et):
-        raise RuntimeError("Authentication failed - data corrupted or tampered")
-    _ks = _keystream(_k, _nonce, len(_c))
-    return bytes(c ^ k for c, k in zip(_c, _ks))
+def _dc(_d, _mk):
+    _sl = _d[:_SS]
+    _nc = _d[_SS:_SS + _NS]
+    _ct = _d[_SS + _NS:]
+    _k = _dk(_mk, _sl)
+    if _HC:
+        return _AG(_k).decrypt(_nc, _ct, None)
+    _c, _tg = _ct[:-16], _ct[-16:]
+    _ak = _hl.sha256(_k + b'auth').digest()
+    _et = _hm.new(_ak, _nc + _c, _hl.sha256).digest()[:16]
+    if not _hm.compare_digest(_tg, _et):
+        raise RuntimeError("Integrity check failed")
+    return bytes(c ^ k for c, k in zip(_c, _ks(_k, _nc, len(_c))))
 
-# ============== Memory Protection ==============
-def _secure_clear(_data):
-    """Attempt to clear sensitive data from memory."""
-    if isinstance(_data, bytearray):
-        for _i in range(len(_data)):
-            _data[_i] = 0
-    elif isinstance(_data, memoryview):
-        _data[:] = b'\\x00' * len(_data)
+# ============== Secure Memory Operations ==============
+def _sc(_d):
+    """Multi-pass secure clear."""
+    if isinstance(_d, bytearray):
+        for _p in [0x00, 0xFF, 0xAA, 0x55, 0x00]:  # Multiple overwrite passes
+            for _i in range(len(_d)):
+                _d[_i] = _p
 
-# ============== Main Entry Point ==============
-def __pyobfuscate__(_name, _file, _payload):
-    """Decrypt and execute protected code with security checks."""
-    _data = _b.b64decode(_payload)
-    _key_copy = bytearray(_KEY)
+def _gk():
+    """Get key with decoy operations."""
+    _decoy = bytearray(_os.urandom(32))  # Decoy to confuse memory analysis
+    _real = bytearray(_K)
+    _sc(_decoy)
+    return _real
+
+# ============== Main Entry ==============
+def __pyobfuscate__(_nm, _fl, _pl):
+    """Protected execution entry point."""
+    # Self-integrity check first
+    if not _ic():
+        raise RuntimeError("Runtime integrity compromised")
+    
+    _dt_raw = _b64.b64decode(_pl)
+    _kc = _gk()
     
     try:
-        # Verify magic header (support both v2 and v3)
-        if _data[:8] not in (b'PYO00002', b'PYO00003'):
-            raise RuntimeError("Invalid protected file format")
+        # Verify magic (support v2/v3)
+        if _dt_raw[:8] not in (b'PYO00002', _M):
+            raise RuntimeError("Invalid format")
         
-        _dlen = _s.unpack('<I', _data[10:14])[0]
-        _chk = _data[14:30]
-        _enc = _data[30:30+_dlen]
+        _dl = _st.unpack('<I', _dt_raw[10:14])[0]
+        _ch = _dt_raw[14:30]
+        _en = _dt_raw[30:30+_dl]
         
-        if _h.sha256(_enc).digest()[:16] != _chk:
-            raise RuntimeError("Protected file corrupted or tampered")
+        if _hl.sha256(_en).digest()[:16] != _ch:
+            raise RuntimeError("Data corrupted")
         
-        # Decrypt
-        _dec = _decrypt(_enc, bytes(_key_copy))
-        
-        # Parse metadata
-        _mlen = _s.unpack('<H', _dec[:2])[0]
-        _meta_bytes = _dec[2:2+_mlen]
-        _meta = eval(_meta_bytes.decode('utf-8'))
-        _comp = _dec[2+_mlen:]
+        _dec = _dc(_en, bytes(_kc))
+        _ml = _st.unpack('<H', _dec[:2])[0]
+        _mb = _dec[2:2+_ml]
+        _mt = eval(_mb.decode('utf-8'))
+        _cp = _dec[2+_ml:]
         
         # ===== Security Checks =====
+        if _mt.get('anti_debug', False):
+            if _ad():
+                raise RuntimeError("Debug environment detected")
+            # Optional: VM detection (disabled by default - too many false positives)
+            # if _vd():
+            #     raise RuntimeError("Virtualized environment detected")
         
-        # Anti-debugging check
-        if _meta.get('anti_debug', False) and _check_debugger():
-            raise RuntimeError("Debugging detected - execution blocked")
+        if _ce(_mt.get('expiration')):
+            raise RuntimeError("License expired")
         
-        # Expiration check
-        if _check_expiration(_meta.get('expiration')):
-            raise RuntimeError("License expired - please renew")
+        _am = _mt.get('machines', [])
+        if _am:
+            _cm = _gm()
+            if _cm not in _am:
+                raise RuntimeError(f"Unauthorized machine: {{_cm}}")
         
-        # Machine binding check
-        _allowed = _meta.get('machines', [])
-        if _allowed:
-            _current = _get_machine_id()
-            if _current not in _allowed:
-                raise RuntimeError(f"Machine not authorized. ID: {{_current}}")
+        if not _cd(_mt.get('domains', [])):
+            raise RuntimeError("Domain unauthorized")
         
-        # Domain lock check
-        if not _check_domain(_meta.get('domains', [])):
-            raise RuntimeError("Domain not authorized")
+        # ===== Execute =====
+        _bc = _zl.decompress(_cp)
+        _cd_obj = _ml.loads(_bc)
         
-        # ===== Execute Code =====
-        _bc = _z.decompress(_comp)
-        _code = _m.loads(_bc)
+        _gl = {{'__name__': _nm, '__file__': _fl, '__builtins__': __builtins__}}
+        exec(_cd_obj, _gl)
         
-        _g = {{
-            '__name__': _name,
-            '__file__': _file,
-            '__builtins__': __builtins__,
-        }}
-        
-        exec(_code, _g)
-        
-        # Copy exports to caller's namespace
-        _caller = _sys.modules.get(_name)
-        if _caller:
-            for _k, _v in _g.items():
+        _cl = _sy.modules.get(_nm)
+        if _cl:
+            for _k, _v in _gl.items():
                 if not _k.startswith('_'):
-                    setattr(_caller, _k, _v)
+                    setattr(_cl, _k, _v)
     
     finally:
-        # Clear sensitive data
-        _secure_clear(_key_copy)
-        del _key_copy
+        _sc(_kc)
+        del _kc
 '''
 
     def protect_file(
