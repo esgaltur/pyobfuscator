@@ -1,7 +1,7 @@
 """
-PyObfuscate Examples and Demo Scripts
+PyObfuscator Examples and Demo Scripts
 
-This folder contains example scripts and demos for using PyObfuscate:
+This folder contains example scripts and demos for using PyObfuscator:
 
 - demo.py                    - Basic obfuscation demo
 - demo_runtime_protection.py - Runtime protection demo

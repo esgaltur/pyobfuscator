@@ -3,11 +3,11 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyobfuscate"
+name = "pyobfuscator"
 version = "1.0.0"
 description = "A Python code obfuscation library with advanced runtime protection"
 readme = "README.md"
-license = {text = "MIT"}
+license = "MIT"
 requires-python = ">=3.10"
 authors = [
     {name = "Dmitrij Sosnovic", email = "dmitriy@sosnovich.com"}
@@ -16,7 +16,6 @@ keywords = ["obfuscation", "protection", "encryption", "bytecode", "security"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -35,7 +34,7 @@ pyd = ["cython>=3.0.0"]
 all = ["cryptography>=41.0.0", "cython>=3.0.0"]
 
 [project.scripts]
-pyobfuscate = "pyobfuscate.cli:main"
+pyobfuscator = "pyobfuscator.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/esgaltur/pyobfuscator"
@@ -46,7 +45,7 @@ Changelog = "https://github.com/esgaltur/pyobfuscator/releases"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["pyobfuscate*"]
+include = ["pyobfuscator*"]
 exclude = ["examples*"]
 
 [tool.setuptools.package-data]

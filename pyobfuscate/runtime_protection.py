@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Runtime Protection Module for PyObfuscate.
+Runtime Protection Module for PyObfuscator.
 
 This creates encrypted Python files that require a runtime module to execute.
 The code is compiled to bytecode, encrypted, and wrapped in a loader.

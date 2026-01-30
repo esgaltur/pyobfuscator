@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Tests for PyObfuscate library.
+Tests for PyObfuscator library.
 """
 
 import ast
@@ -10,8 +10,8 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from pyobfuscate import Obfuscator
-from pyobfuscate.obfuscator import NameGenerator, NameObfuscator, StringObfuscator, CodeCompressor
+from pyobfuscator import Obfuscator
+from pyobfuscator.obfuscator import NameGenerator, NameObfuscator, StringObfuscator, CodeCompressor
 
 
 def test_name_generator():
@@ -213,7 +213,7 @@ def read_config(path):
 
 def run_all_tests():
     """Run all tests."""
-    print("Running PyObfuscate tests...")
+    print("Running PyObfuscator tests...")
     print("=" * 50)
 
     test_name_generator()

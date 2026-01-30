@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from pyobfuscate.pyd_protection import PydRuntimeProtector
+from pyobfuscator.pyd_protection import PydRuntimeProtector
 
 
 def main():

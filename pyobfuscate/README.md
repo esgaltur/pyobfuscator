@@ -1,4 +1,4 @@
-# PyObfuscate
+# PyObfuscator
 
 A lightweight, license-free Python code obfuscation library with advanced runtime protection.
 
@@ -33,7 +33,7 @@ Without it, a pure Python fallback is used (same security, slower).
 ## Project Structure
 
 ```
-pyobfuscate/
+pyobfuscator/
 ├── __init__.py           # Package exports
 ├── __main__.py           # CLI entry point
 ├── cli.py                # Command-line interface
@@ -65,25 +65,25 @@ pip install cython
 
 ```bash
 # Obfuscate a single file
-python -m pyobfuscate -i script.py -o obfuscated.py
+python -m pyobfuscator -i script.py -o obfuscated.py
 
 # Obfuscate a directory
-python -m pyobfuscate -i src/ -o dist/ --recursive
+python -m pyobfuscator -i src/ -o dist/ --recursive
 
 # With compression
-python -m pyobfuscate -i script.py -o obfuscated.py --compress
+python -m pyobfuscator -i script.py -o obfuscated.py --compress
 
 # Using XOR for string obfuscation
-python -m pyobfuscate -i script.py -o obfuscated.py --string-method xor
+python -m pyobfuscator -i script.py -o obfuscated.py --string-method xor
 
 # Verbose output
-python -m pyobfuscate -i src/ -o dist/ -v
+python -m pyobfuscator -i src/ -o dist/ -v
 ```
 
 ### Python API
 
 ```python
-from pyobfuscate import Obfuscator
+from pyobfuscator import Obfuscator
 
 # Create obfuscator with desired options
 obfuscator = Obfuscator(
@@ -189,37 +189,37 @@ def _zX9pD():
 ### After PYD Protection (Encrypted Runtime)
 
 ```python
-# PyObfuscate 1.0.0 (PYD), abc123, Protected, 2026-01-30
-from pyobfuscate_runtime_abc123 import __pyobfuscate__
-__pyobfuscate__(__name__, __file__, b'UFlEMDAwMDEAA...')
+# PyObfuscator 1.0.0 (PYD), abc123, Protected, 2026-01-30
+from pyobfuscator_runtime_abc123 import __pyobfuscator__
+__pyobfuscator__(__name__, __file__, b'UFlEMDAwMDEAA...')
 ```
 
 ## Running Examples
 
 ```bash
 # Basic obfuscation demo
-python pyobfuscate/examples/demo.py
+python pyobfuscator/examples/demo.py
 
 # Runtime protection demo
-python pyobfuscate/examples/demo_runtime_protection.py
+python pyobfuscator/examples/demo_runtime_protection.py
 
 # PYD protection demo
-python pyobfuscate/examples/demo_pyd_protection.py
+python pyobfuscator/examples/demo_pyd_protection.py
 
 # Obfuscate github_pr_dashboard (AST-based)
-python pyobfuscate/examples/obfuscate_dashboard.py
+python pyobfuscator/examples/obfuscate_dashboard.py
 
 # Protect github_pr_dashboard (PYD runtime)
-python pyobfuscate/examples/protect_dashboard.py
+python pyobfuscator/examples/protect_dashboard.py
 
 # Run tests
-python pyobfuscate/examples/tests.py
+python pyobfuscator/examples/tests.py
 ```
 
 ## Running Tests
 
 ```bash
-python pyobfuscate/tests.py
+python pyobfuscator/tests.py
 ```
 
 ## Limitations
@@ -231,7 +231,7 @@ python pyobfuscate/tests.py
 
 ## Comparison with Commercial Solutions
 
-| Feature | PyObfuscate | Commercial Tools |
+| Feature | PyObfuscator | Commercial Tools |
 |---------|-------------|------------------|
 | License | Free & Open Source | Paid |
 | Name obfuscation | ✓ | ✓ |
@@ -242,4 +242,4 @@ python pyobfuscate/tests.py
 | Machine binding | ✓ | ✓ |
 | Python 3.13+ | ✓ | Limited |
 
-PyObfuscate provides enterprise-grade protection without licensing restrictions.
+PyObfuscator provides enterprise-grade protection without licensing restrictions.

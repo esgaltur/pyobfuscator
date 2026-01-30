@@ -44,18 +44,18 @@ jobs:
 
     - name: Run tests
       run: |
-        python -m pytest tests/ -v --cov=pyobfuscate --cov-report=xml || python examples/tests.py
+        python -m pytest tests/ -v --cov=pyobfuscator --cov-report=xml || python examples/tests.py
 
     - name: Test CLI
       run: |
-        pyobfuscate --help
+        pyobfuscator --help
         echo "print('hello')" > test_input.py
-        pyobfuscate -i test_input.py -o test_output.py
+        pyobfuscator -i test_input.py -o test_output.py
         python test_output.py
 
     - name: Test import
       run: |
-        python -c "from pyobfuscate import Obfuscator, RuntimeProtector; print('Import OK')"
+        python -c "from pyobfuscator import Obfuscator, RuntimeProtector; print('Import OK')"
 
     - name: Upload coverage
       if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
@@ -80,16 +80,16 @@ jobs:
 
     - name: Check formatting with black
       run: |
-        black --check --diff pyobfuscate/ || true
+        black --check --diff pyobfuscator/ || true
 
     - name: Check imports with isort
       run: |
-        isort --check-only --diff pyobfuscate/ || true
+        isort --check-only --diff pyobfuscator/ || true
 
     - name: Lint with flake8
       run: |
-        flake8 pyobfuscate/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 pyobfuscate/ --count --exit-zero --max-complexity=15 --max-line-length=120 --statistics
+        flake8 pyobfuscator/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 pyobfuscator/ --count --exit-zero --max-complexity=15 --max-line-length=120 --statistics
 
   security:
     runs-on: ubuntu-latest
@@ -106,7 +106,7 @@ jobs:
 
     - name: Run bandit security scan
       run: |
-        bandit -r pyobfuscate/ -ll || true
+        bandit -r pyobfuscator/ -ll || true
 
     - name: Check dependencies for vulnerabilities
       run: |

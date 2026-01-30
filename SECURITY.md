@@ -9,7 +9,7 @@
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a security vulnerability in PyObfuscate, please report it responsibly.
+We take security seriously. If you discover a security vulnerability in PyObfuscator, please report it responsibly.
 
 ### How to Report
 
@@ -51,6 +51,6 @@ We will not pursue legal action against security researchers who:
 
 ## Security Features
 
-PyObfuscate includes 50+ security features. See [README.md](README.md) for details.
+PyObfuscator includes 50+ security features. See [README.md](README.md) for details.
 
-Thank you for helping keep PyObfuscate secure!
+Thank you for helping keep PyObfuscator secure!

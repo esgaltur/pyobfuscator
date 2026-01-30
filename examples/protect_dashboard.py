@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from pyobfuscate.pyd_protection import PydRuntimeProtector
+from pyobfuscator.pyd_protection import PydRuntimeProtector
 
 
 def main():
@@ -17,7 +17,7 @@ def main():
     output_dir = project_root / "build" / "pyd_protected" / "github_pr_dashboard"
 
     print("=" * 60)
-    print("PyObfuscate PYD Runtime Protection")
+    print("PyObfuscator PYD Runtime Protection")
     print("=" * 60)
     print(f"Input:  {input_dir}")
     print(f"Output: {output_dir}")
@@ -90,16 +90,16 @@ def main():
         print(f"Fallback runtime: {results['fallback_py']}")
 
     print()
-    print(f"Protection complete!")
+    print("Protection complete!")
     print(f"  Files processed: {success_count}")
     print(f"  Errors: {error_count}")
 
     if not has_cython:
         print()
         print("To build the .pyd runtime manually:")
-        print(f"  1. Install Cython: pip install cython")
+        print("  1. Install Cython: pip install cython")
         print(f"  2. cd {output_dir}")
-        print(f"  3. python setup.py build_ext --inplace")
+        print("  3. python setup.py build_ext --inplace")
 
     if error_count > 0:
         return 1

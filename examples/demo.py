@@ -1,5 +1,5 @@
 """
-Demo script showing PyObfuscate in action.
+Demo script showing PyObfuscator in action.
 """
 
 import sys
@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from pyobfuscate import Obfuscator
+from pyobfuscator import Obfuscator
 
 
 def main():

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Tests for PyObfuscate."""
+"""Tests for PyObfuscator."""
 import pytest
 import sys
 import os
@@ -7,7 +7,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pyobfuscate import Obfuscator, RuntimeProtector
+from pyobfuscator import Obfuscator, RuntimeProtector
 
 
 class TestObfuscator:
@@ -157,7 +157,7 @@ class TestCrypto:
 
     def test_encrypt_decrypt_roundtrip(self):
         """Test that encrypt/decrypt roundtrip works."""
-        from pyobfuscate.crypto import CryptoEngine
+        from pyobfuscator.crypto import CryptoEngine
 
         key = b'0' * 32
         engine = CryptoEngine(key)
@@ -170,7 +170,7 @@ class TestCrypto:
 
     def test_different_keys_produce_different_ciphertext(self):
         """Test that different keys produce different ciphertext."""
-        from pyobfuscate.crypto import CryptoEngine
+        from pyobfuscator.crypto import CryptoEngine
 
         key1 = b'1' * 32
         key2 = b'2' * 32

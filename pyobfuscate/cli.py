@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Command-line interface for PyObfuscate.
+Command-line interface for PyObfuscator.
 """
 
 import argparse
@@ -19,9 +19,9 @@ def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 Examples:
-  pyobfuscate -i script.py -o obfuscated.py
-  pyobfuscate -i src/ -o dist/ --recursive
-  pyobfuscate -i module/ -o dist/ --compress --string-method xor
+  pyobfuscator -i script.py -o obfuscated.py
+  pyobfuscator -i src/ -o dist/ --recursive
+  pyobfuscator -i module/ -o dist/ --compress --string-method xor
         '''
     )
 

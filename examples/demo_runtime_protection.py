@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from pyobfuscate.runtime_protection import RuntimeProtector, protect
+from pyobfuscator.runtime_protection import RuntimeProtector, protect
 
 
 def main():
@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     # Get current machine ID for demonstration
     current_machine_id = RuntimeProtector.get_machine_id()
-    print(f"\n[MACHINE INFO]")
+    print("\n[MACHINE INFO]")
     print(f"Current Machine ID: {current_machine_id}")
 
     print("\n[ORIGINAL CODE]")
@@ -132,7 +132,7 @@ if __name__ == "__main__":
         anti_debug=True,  # Enable anti-debugging
         domain_lock=["localhost", "mycompany.com"]
     )
-    protected_full, runtime_full = protector_full.protect_source(sample_code, "demo_full.py")
+    protected_full, _ = protector_full.protect_source(sample_code, "demo_full.py")
     print(f"Expires: {protector_full.expiration_date}")
     print(f"Allowed machines: {protector_full.allowed_machines}")
     print(f"Anti-debug: {protector_full.anti_debug}")
@@ -154,7 +154,7 @@ if __name__ == "__main__":
         f.write(protected)
 
     # Write runtime module
-    runtime_file = output_dir / f"pyobfuscate_runtime_{protector.runtime_id}.py"
+    runtime_file = output_dir / f"pyobfuscator_runtime_{protector.runtime_id}.py"
     with open(runtime_file, 'w') as f:
         f.write(runtime)
 

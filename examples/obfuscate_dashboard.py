@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Script to obfuscate the github_pr_dashboard project using PyObfuscate.
+Script to obfuscate the github_pr_dashboard project using PyObfuscator.
 """
 
 import sys
@@ -9,7 +9,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from pyobfuscate import Obfuscator
+from pyobfuscator import Obfuscator
 
 
 def main():
@@ -18,8 +18,8 @@ def main():
     input_dir = project_root / "github_pr_dashboard"
     output_dir = project_root / "build" / "obfuscated" / "github_pr_dashboard"
 
-    print(f"PyObfuscate - Python Code Obfuscation")
-    print(f"=" * 50)
+    print("PyObfuscator - Python Code Obfuscation")
+    print("=" * 50)
     print(f"Input:  {input_dir}")
     print(f"Output: {output_dir}")
     print()
@@ -89,7 +89,7 @@ def main():
             error_count += 1
 
     print()
-    print(f"Obfuscation complete!")
+    print("Obfuscation complete!")
     print(f"  Files processed: {success_count}")
     print(f"  Errors: {error_count}")
 

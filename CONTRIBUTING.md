@@ -1,10 +1,10 @@
-# Contributing to PyObfuscate
+# Contributing to PyObfuscator
 
-Thank you for your interest in contributing to PyObfuscate! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to PyObfuscator! This document provides guidelines and information for contributors.
 
 ## Code of Conduct
 
-Please be respectful and considerate of others. We're all here to make PyObfuscate better.
+Please be respectful and considerate of others. We're all here to make PyObfuscator better.
 
 ## How to Contribute
 

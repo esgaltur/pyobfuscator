@@ -23,7 +23,7 @@ What actually happened.
 ## Environment
 - OS: [e.g., Windows 11, Ubuntu 22.04, macOS 14]
 - Python Version: [e.g., 3.12.0]
-- PyObfuscate Version: [e.g., 1.0.0]
+- PyObfuscator Version: [e.g., 1.0.0]
 - cryptography installed: [yes/no]
 
 ## Code Sample

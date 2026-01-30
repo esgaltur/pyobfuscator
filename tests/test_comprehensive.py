@@ -26,7 +26,7 @@ import pytest
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pyobfuscate import (
+from pyobfuscator import (
     Obfuscator,
     NameGenerator,
     RuntimeProtector,
@@ -39,8 +39,8 @@ from pyobfuscate import (
     DistributedTimingChecker,
     get_machine_id,
 )
-from pyobfuscate.crypto import CryptoEngine, HAS_CRYPTOGRAPHY
-from pyobfuscate.utils import extract_public_api, calculate_file_hash, find_python_files
+from pyobfuscator.crypto import CryptoEngine, HAS_CRYPTOGRAPHY
+from pyobfuscator.utils import extract_public_api, calculate_file_hash, find_python_files
 
 
 # =============================================================================
@@ -802,7 +802,7 @@ class TestPydRuntimeProtector:
         source = "print('hello')"
         protected, pyx, setup = protector.protect_source(source, "test.py")
 
-        assert "__pyobfuscate__" in protected
+        assert "__pyobfuscator__" in protected
         assert "cython" in pyx.lower() or "cdef" in pyx
         assert "setup" in setup.lower()
 
@@ -825,7 +825,7 @@ class TestPydRuntimeProtector:
 
             assert runtime_path.exists()
             content = runtime_path.read_text()
-            assert "__pyobfuscate__" in content
+            assert "__pyobfuscator__" in content
             assert "_check_debugger" in content
 
 
