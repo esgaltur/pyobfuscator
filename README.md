@@ -1,38 +1,81 @@
 # PyObfuscate
 
-A lightweight, license-free Python code obfuscation library with advanced runtime protection.
+A comprehensive, license-free Python code obfuscation library with enterprise-grade runtime protection.
 
 ## Features
 
+### Core Obfuscation
 - **Name Obfuscation**: Renames variables, functions, and classes to unreadable names
 - **String Obfuscation**: Encodes string literals using base64, hex, or XOR encoding
 - **Code Compression**: Optionally compresses code into a single exec() statement
 - **Docstring Removal**: Removes docstrings to reduce code size and readability
 - **Comment Removal**: Comments are automatically removed during AST processing
-- **Runtime Protection**: Encrypted bytecode with runtime decryption
-- **PYD Compilation**: Compile runtime to .pyd (C extension) for maximum protection
-- **Strong Encryption**: AES-256-GCM with PBKDF2 key derivation (100,000 iterations)
-- **Anti-Debugging**: Multi-layer debugger detection (6+ layers)
-- **License Expiration**: Time-based license with configurable expiration dates
-- **Machine Binding**: Lock code execution to specific hardware/machines
-- **Domain Lock**: Restrict execution to specific domain names (for web apps)
-- **Memory Protection**: Secure clearing of sensitive data after use
-- **Polymorphic Runtime**: Each protection generates unique obfuscated code
-- **Layered Encryption**: Multiple encryption layers for defense in depth
-- **Bytecode Scrambling**: XOR-based bytecode obfuscation before encryption
-- **Encrypted Errors**: All error messages are encrypted in runtime
-- **Anti-Patching**: Detects modifications to runtime files
-- **Call Stack Verification**: Verifies execution context is legitimate
-- **Anti-Memory Dump**: Detects memory scanning and analysis tools
-- **Watermarking**: Hidden identifiers for tracking unauthorized distribution
-- **Honey Tokens**: Fake keys to detect tampering attempts
-- **Opaque Predicates**: Complex conditions that confuse static analysis
-- **Control Flow Obfuscation**: Indirect function dispatching
-- **Code Virtualization**: Simple VM for additional obfuscation layer
-- **Import Hooks**: Custom module loading system
-- **Resource Exhaustion**: Slows down automated analysis on tampering
-- **Network License**: Optional online license validation
 - **Configurable**: Fine-tune what gets obfuscated and what remains readable
+
+### Runtime Protection
+- **Encrypted Bytecode**: Code compiled to bytecode and encrypted before distribution
+- **PYD Compilation**: Compile runtime to .pyd/.so (C extension) for maximum protection
+- **Polymorphic Runtime**: Each protection generates unique obfuscated code with different variable names
+- **Import Hooks**: Custom module loading system for protected imports
+
+### Encryption
+- **AES-256-GCM**: Military-grade encryption with authentication
+- **Layered Encryption**: XOR + AES double encryption for defense in depth
+- **PBKDF2 Key Derivation**: 100,000 iterations for key strengthening
+- **Bytecode Scrambling**: XOR-based bytecode obfuscation before encryption
+- **Per-file Salt/Nonce**: Unique cryptographic parameters for each file
+- **Constant Blinding**: Magic numbers hidden through XOR operations
+
+### Code Virtualization
+- **Stack-based VM**: Custom virtual machine with 35 randomized opcodes
+- **Randomized Opcode Table**: Opcode mappings change with each protection
+- **Self-modifying Code**: VM bytecode modifies itself during execution
+- **Anti-analysis in VM**: Detects tracing and corrupts output if analyzed
+- **Subroutine Support**: CALL/RET instructions for complex transformation programs
+
+### Anti-Analysis Protection (12+ Layers)
+| Layer | Feature | Description |
+|-------|---------|-------------|
+| 1 | **Self-integrity Check** | Verifies runtime module hash |
+| 2 | **Anti-patching** | Detects modifications to runtime files |
+| 3 | **Call Stack Verification** | Verifies execution context is legitimate |
+| 4 | **Anti-memory Dump** | Detects CheatEngine, x64dbg, IDA, Ghidra, etc. |
+| 5 | **Parent Process Trace** | Verifies not launched by analysis tools |
+| 6 | **Anti-hooking** | Detects if built-in functions are replaced |
+| 7 | **Environment Fingerprinting** | Detailed environment verification |
+| 8 | **Timing-based Anti-debug** | Detects debugger slowdown |
+| 9 | **Debugger Module Detection** | Checks for pydevd, debugpy, pdb in memory |
+| 10 | **Environment Variable Check** | Detects PYTHONDEBUG, PYCHARM_DEBUG, etc. |
+| 11 | **VM/Sandbox Detection** | Detects VMware, VirtualBox, QEMU, Hyper-V |
+| 12 | **Profile/Trace Check** | Detects sys.settrace/setprofile hooks |
+
+### Control Flow Protection
+- **Control Flow Dispatch**: Indirect function calls through dispatch table
+- **State Machine**: Execution flow verification through state transitions
+- **Code Splitting**: Decryption logic distributed across multiple functions
+- **Opaque Predicates**: Complex conditions that always evaluate the same but confuse static analysis
+- **Dead Code Injection**: Realistic but never-executed code paths
+- **Fake Error Paths**: Decoy error handlers that trigger on analysis
+
+### Integrity Verification
+- **SHA-256 Checksums**: Payload integrity verification
+- **Checksum Chains**: Incremental hash verification throughout execution
+- **HMAC Authentication**: Cryptographic authentication of encrypted data
+- **Encrypted Error Messages**: All error strings are XOR-encrypted
+
+### Licensing & DRM
+- **License Expiration**: Time-based restrictions with configurable dates
+- **Machine Binding**: Lock code execution to specific hardware (CPU, MAC, disk serial)
+- **Domain Lock**: Restrict execution to specific hostnames/domains
+- **Network License**: Optional online license validation with server
+- **Watermarking**: Hidden identifiers for tracking unauthorized distribution
+- **Honey Tokens**: Fake decryption keys to detect tampering attempts
+
+### Defense Mechanisms
+- **Resource Exhaustion**: CPU-intensive loop triggered on tampering detection
+- **Secure Memory Clear**: 5-pass key wiping (0x00, 0xFF, 0xAA, 0x55, 0x00)
+- **String Table Encryption**: Constant strings stored in encrypted lookup table
+- **Decoy Operations**: Fake key generation to confuse memory analysis
 
 ## Security
 
@@ -303,14 +346,32 @@ print(f"PYD runtime: {result['pyd']}")
 
 ### Protection Options
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `license_info` | str | License/author info embedded in protected files |
-| `encryption_key` | bytes | Custom 32-byte key (auto-generated if not provided) |
-| `expiration_date` | datetime | Optional expiration date |
-| `allowed_machines` | list[str] | List of allowed machine IDs |
-| `anti_debug` | bool | Enable anti-debugging detection (default: True) |
-| `domain_lock` | list[str] | List of allowed domain names |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `license_info` | str | "PyObfuscate..." | License/author info embedded in protected files |
+| `encryption_key` | bytes | Auto-generated | Custom 32-byte encryption key |
+| `expiration_date` | datetime | None | Optional expiration date for time-limited licenses |
+| `allowed_machines` | list[str] | [] | List of allowed machine IDs for hardware binding |
+| `anti_debug` | bool | True | Enable multi-layer anti-debugging detection |
+| `domain_lock` | list[str] | [] | List of allowed domain names for web apps |
+| `enable_vm_detection` | bool | False | Enable VM/sandbox detection (may have false positives) |
+| `enable_network_check` | bool | False | Enable online license validation |
+| `license_server_url` | str | None | URL for network license validation server |
+
+### Getting Machine ID
+
+```python
+from pyobfuscate import RuntimeProtector
+
+# Get current machine's unique ID for hardware binding
+machine_id = RuntimeProtector.get_machine_id()
+print(f"Machine ID: {machine_id}")
+
+# Use in protection
+protector = RuntimeProtector(
+    allowed_machines=[machine_id, "other_machine_id"]
+)
+```
 
 ## Running Examples
 
@@ -347,21 +408,120 @@ python pyobfuscate/tests.py
 - f-strings with complex expressions may not obfuscate perfectly
 - Pure Python runtime can be reverse-engineered (use PYD compilation for stronger protection)
 - Anti-debugging can be bypassed by determined attackers (defense in depth recommended)
+- VM/sandbox detection may have false positives in legitimate virtualized environments
+
+## Security Architecture
+
+### Execution Flow
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SECURITY VERIFICATION LAYERS                  │
+├─────────────────────────────────────────────────────────────────┤
+│  Layer 1:  Self-integrity Check (SHA-256 hash verification)     │
+│  Layer 2:  Anti-patching Detection (file modification check)    │
+│  Layer 3:  Call Stack Verification (debugger frame detection)   │
+│  Layer 4:  Anti-memory Dump (analysis tool detection)           │
+│  Layer 5:  Parent Process Trace (launcher verification)         │
+│  Layer 6:  Anti-hooking (built-in function verification)        │
+│  Layer 7:  Environment Fingerprinting (suspicious env check)    │
+├─────────────────────────────────────────────────────────────────┤
+│                     PAYLOAD PROCESSING                           │
+├─────────────────────────────────────────────────────────────────┤
+│  ► Checksum Chain Initialization                                 │
+│  ► Magic Header Verification (PYO00004)                         │
+│  ► SHA-256 Integrity Check                                       │
+│  ► AES-256-GCM Decryption (Layer 2)                             │
+│  ► XOR Decryption (Layer 1)                                      │
+│  ► Metadata Parsing                                              │
+├─────────────────────────────────────────────────────────────────┤
+│                    LICENSE VERIFICATION                          │
+├─────────────────────────────────────────────────────────────────┤
+│  ► Anti-debug Check (if enabled)                                │
+│  ► VM/Sandbox Detection (if enabled)                            │
+│  ► Expiration Date Check                                         │
+│  ► Machine ID Verification                                       │
+│  ► Domain Lock Check                                             │
+│  ► Network License Validation (if configured)                   │
+├─────────────────────────────────────────────────────────────────┤
+│                     CODE EXECUTION                               │
+├─────────────────────────────────────────────────────────────────┤
+│  ► Zlib Decompression                                            │
+│  ► VM-based Bytecode Descrambling (35 random opcodes)           │
+│  ► Final Checksum Verification                                   │
+│  ► Marshal Load                                                  │
+│  ► Import Hook Registration                                      │
+│  ► Code Execution (via Control Flow Dispatcher)                 │
+│  ► Secure Memory Cleanup                                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Code Virtualization VM
+```
+┌────────────────────────────────────────┐
+│         VIRTUALIZATION ENGINE          │
+├────────────────────────────────────────┤
+│  Opcodes (35 total, randomized):       │
+│  ├─ Stack: PUSH, POP, DUP, SWAP, ROT3  │
+│  ├─ Math:  ADD, SUB, MUL, DIV, MOD     │
+│  ├─ Bits:  XOR, AND, OR, NOT, SHL, SHR │
+│  ├─ Bits:  ROTL, ROTR                  │
+│  ├─ Flow:  JMP, JZ, JNZ, JGT, JLT      │
+│  ├─ Call:  CALL, RET                   │
+│  ├─ Mem:   LOAD, STORE, LOADB, STOREB  │
+│  └─ Spec:  NOP, HALT, MUTATE, CHECK,   │
+│            TRAP                         │
+├────────────────────────────────────────┤
+│  Features:                              │
+│  ├─ Randomized opcode mapping          │
+│  ├─ Self-modifying bytecode            │
+│  ├─ Anti-analysis detection            │
+│  ├─ Instruction counter limits         │
+│  └─ Output corruption on tampering     │
+└────────────────────────────────────────┘
+```
 
 ## Comparison with Commercial Solutions
 
 | Feature | PyObfuscate | Commercial Tools |
 |---------|-------------|------------------|
-| License | Free & Open Source | Paid |
+| **License** | Free & Open Source | Paid |
+| **Basic Obfuscation** | | |
 | Name obfuscation | ✓ | ✓ |
 | String obfuscation | ✓ | ✓ |
 | Code compression | ✓ | ✓ |
-| Runtime protection | ✓ | ✓ |
-| Anti-debugging | ✓ | ✓ |
+| **Encryption** | | |
+| AES-256-GCM | ✓ | ✓ |
+| Layered encryption | ✓ | ✓ |
+| Bytecode scrambling | ✓ | ✓ |
+| **Runtime Protection** | | |
+| Anti-debugging (12+ layers) | ✓ | ✓ |
+| Anti-memory dump | ✓ | ✓ |
+| Anti-hooking | ✓ | ✓ |
+| Anti-patching | ✓ | ✓ |
+| **Code Virtualization** | | |
+| Custom VM | ✓ | ✓ |
+| Randomized opcodes | ✓ | ✓ |
+| Self-modifying code | ✓ | ✓ |
+| **Control Flow** | | |
+| Control flow flattening | ✓ | ✓ |
+| Opaque predicates | ✓ | ✓ |
+| Dead code injection | ✓ | ✓ |
+| State machine verification | ✓ | Some |
+| **Licensing/DRM** | | |
 | License expiration | ✓ | ✓ |
 | Machine binding | ✓ | ✓ |
 | Domain lock | ✓ | ✓ |
+| Network license | ✓ | ✓ |
+| Watermarking | ✓ | ✓ |
+| **Other** | | |
 | PYD compilation | ✓ | ✓ |
+| Polymorphic output | ✓ | ✓ |
+| Checksum chains | ✓ | Some |
+| Honey tokens | ✓ | Some |
 | Python 3.13+ | ✓ | Limited |
 
-PyObfuscate provides enterprise-grade runtime protection with all advanced security features, completely free and open source.
+**Total: 50+ security features** - PyObfuscate provides enterprise-grade protection completely free and open source.
+
+## License
+
+MIT License - Free for commercial and personal use.
