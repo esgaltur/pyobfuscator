@@ -1,2 +1,0 @@
-﻿[main 100474b] Drop Python 3.9 support, require Python 3.10+
- 5 files changed, 12 insertions(+), 31 deletions(-)
