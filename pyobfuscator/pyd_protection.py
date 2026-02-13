@@ -230,11 +230,18 @@ __pyobfuscator__(__name__, __file__, b'{encoded_payload}')
         cdef_bytes = "cdef bytes " if is_cython else "def "
         cdef_void = "cdef void " if is_cython else "def "
 
-        # Variable type annotations (Cython only)
-        list_type = "cdef list " if is_cython else ""
-        str_type = "cdef str " if is_cython else ""
-        bytes_type = "cdef bytes " if is_cython else ""
-        int_type = "cdef int " if is_cython else ""
+        # Parameter type annotations (Cython uses type before param name, no cdef)
+        param_str = "str " if is_cython else ""
+        param_bytes = "bytes " if is_cython else ""
+        param_list = "list " if is_cython else ""
+        param_int = "int " if is_cython else ""
+
+        # Local variable declarations (Cython needs 'cdef type var', Python uses plain assignment)
+        # For Cython, we declare variables at the start of function body
+        local_bytes = "cdef bytes " if is_cython else ""
+        local_int = "cdef int " if is_cython else ""
+        local_list = "cdef list " if is_cython else ""
+        local_str = "cdef str " if is_cython else ""
 
         return f'''
 # ============== Anti-Debugging ==============
@@ -253,7 +260,7 @@ __pyobfuscator__(__name__, __file__, b'{encoded_payload}')
 # ============== Machine Binding ==============
 {cdef_str}_get_machine_id():
     """Get unique machine identifier."""
-    {list_type}info = []
+    {local_list}info = []
     info.append(platform.node())
     info.append(platform.machine())
     info.append(platform.processor())
@@ -275,7 +282,7 @@ __pyobfuscator__(__name__, __file__, b'{encoded_payload}')
     return hashlib.sha256('|'.join(info).encode()).hexdigest()[:32]
 
 # ============== Expiration Check ==============
-{cdef_bint}_check_expiration({str_type}exp_str):
+{cdef_bint}_check_expiration({param_str}exp_str):
     """Check if the license has expired."""
     if not exp_str:
         return False
@@ -286,8 +293,9 @@ __pyobfuscator__(__name__, __file__, b'{encoded_payload}')
         return False
 
 # ============== Domain Lock ==============
-{cdef_bint}_check_domain({list_type}domains):
+{cdef_bint}_check_domain({param_list}domains):
     """Check if running on allowed domain."""
+    {local_str}hostname, fqdn, d
     if not domains:
         return True
     try:
@@ -302,12 +310,12 @@ __pyobfuscator__(__name__, __file__, b'{encoded_payload}')
         return True
 
 # ============== Crypto Functions ==============
-{cdef_bytes}_pbkdf2_sha256({bytes_type}password, {bytes_type}salt, {int_type}iterations, {int_type}dklen):
+{cdef_bytes}_pbkdf2_sha256({param_bytes}password, {param_bytes}salt, {param_int}iterations, {param_int}dklen):
     """Pure Python PBKDF2-HMAC-SHA256."""
-    {bytes_type}dk = b''
-    {int_type}block_num = 1
-    {bytes_type}u
-    {bytes_type}result
+    {local_bytes}dk, u, result
+    {local_int}block_num
+    dk = b''
+    block_num = 1
     
     while len(dk) < dklen:
         u = hmac.new(password, salt + struct.pack('>I', block_num), hashlib.sha256).digest()
@@ -319,7 +327,7 @@ __pyobfuscator__(__name__, __file__, b'{encoded_payload}')
         block_num += 1
     return dk[:dklen]
 
-{cdef_bytes}_derive_key({bytes_type}key, {bytes_type}salt):
+{cdef_bytes}_derive_key({param_bytes}key, {param_bytes}salt):
     """Derive decryption key using PBKDF2."""
     if _HAS_CRYPTO:
         kdf = PBKDF2HMAC(
@@ -331,10 +339,11 @@ __pyobfuscator__(__name__, __file__, b'{encoded_payload}')
         return kdf.derive(key)
     return _pbkdf2_sha256(key, salt, _ITERATIONS, _KEY_SIZE)
 
-{cdef_bytes}_generate_keystream({bytes_type}key, {bytes_type}nonce, {int_type}length):
+{cdef_bytes}_generate_keystream({param_bytes}key, {param_bytes}nonce, {param_int}length):
     """Generate keystream using counter mode."""
+    {local_int}counter
     keystream = bytearray()
-    {int_type}counter = 0
+    counter = 0
     
     while len(keystream) < length:
         block = hashlib.sha256(key + nonce + struct.pack('<Q', counter)).digest()
@@ -342,12 +351,13 @@ __pyobfuscator__(__name__, __file__, b'{encoded_payload}')
         counter += 1
     return bytes(keystream[:length])
 
-{cdef_bytes}_decrypt({bytes_type}data, {bytes_type}master_key):
+{cdef_bytes}_decrypt({param_bytes}data, {param_bytes}master_key):
     """Decrypt AES-256-GCM encrypted data."""
-    {bytes_type}salt = data[:_SALT_SIZE]
-    {bytes_type}nonce = data[_SALT_SIZE:_SALT_SIZE + _NONCE_SIZE]
-    {bytes_type}ciphertext = data[_SALT_SIZE + _NONCE_SIZE:]
-    {bytes_type}key = _derive_key(master_key, salt)
+    {local_bytes}salt, nonce, ciphertext, key, ct, tag, auth_key, expected_tag
+    salt = data[:_SALT_SIZE]
+    nonce = data[_SALT_SIZE:_SALT_SIZE + _NONCE_SIZE]
+    ciphertext = data[_SALT_SIZE + _NONCE_SIZE:]
+    key = _derive_key(master_key, salt)
     
     if _HAS_CRYPTO:
         aesgcm = AESGCM(key)
@@ -369,6 +379,7 @@ __pyobfuscator__(__name__, __file__, b'{encoded_payload}')
 # ============== Memory Protection ==============
 {cdef_void}_secure_clear(data):
     """Clear sensitive data from memory."""
+    {local_int}i
     if isinstance(data, bytearray):
         for i in range(len(data)):
             data[i] = 0

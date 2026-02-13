@@ -105,6 +105,140 @@ class NameGenerator:
         self.name_map.update(mapping)
         self._used_names.update(mapping.values())
 
+    def pre_register_name(self, original: str) -> str:
+        """
+        Pre-register a name to ensure consistent mapping across files.
+
+        This is used in the two-phase obfuscation approach:
+        Phase 1: Collect all definitions and pre-register them
+        Phase 2: Apply transformations using the complete mapping
+        """
+        return self.get_name(original)
+
+
+class DefinitionCollector(ast.NodeVisitor):
+    """
+    AST visitor that collects all definitions (classes, functions, variables)
+    without transforming the code.
+
+    Used in Phase 1 of two-phase obfuscation to build the complete name mapping
+    before any transformations are applied.
+    """
+
+    # Names that should never be collected for obfuscation
+    RESERVED = {
+        'self', 'cls', 'super', '__init__', '__new__', '__del__', '__repr__',
+        '__str__', '__bytes__', '__format__', '__lt__', '__le__', '__eq__',
+        '__ne__', '__gt__', '__ge__', '__hash__', '__bool__', '__getattr__',
+        'True', 'False', 'None', 'Exception', 'BaseException',
+        'print', 'range', 'len', 'str', 'int', 'float', 'bool', 'list', 'dict',
+        'tuple', 'set', 'frozenset', 'bytes', 'bytearray', 'type', 'object',
+        'open', 'input', 'abs', 'all', 'any', 'ascii', 'bin', 'callable',
+        'chr', 'classmethod', 'compile', 'complex', 'delattr', 'dir', 'divmod',
+        'enumerate', 'eval', 'exec', 'filter', 'format', 'getattr', 'globals',
+        'hasattr', 'hash', 'help', 'hex', 'id', 'isinstance', 'issubclass',
+        'iter', 'locals', 'map', 'max', 'memoryview', 'min', 'next', 'oct',
+        'ord', 'pow', 'property', 'repr', 'reversed', 'round', 'setattr',
+        'slice', 'sorted', 'staticmethod', 'sum', 'super', 'vars', 'zip',
+        '__import__', 'breakpoint',
+    }
+    BUILTINS = set(dir(__builtins__))
+
+    def __init__(self, name_generator: NameGenerator, exclude_names: Optional[Set[str]] = None):
+        self.name_gen = name_generator
+        self.exclude = self.RESERVED | self.BUILTINS | (exclude_names or set())
+        self._in_class = False
+
+    def _should_collect(self, name: str) -> bool:
+        """Check if a name should be collected for obfuscation."""
+        if name.startswith('__') and name.endswith('__'):
+            return False
+        if name in self.exclude:
+            return False
+        return True
+
+    def _register(self, name: str) -> None:
+        """Pre-register a name in the name generator."""
+        if self._should_collect(name):
+            self.name_gen.pre_register_name(name)
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        """Collect function/method definitions."""
+        self._register(node.name)
+        if self._in_class:
+            self.name_gen.register_method(node.name)
+        # Collect argument names
+        for arg in node.args.args:
+            if arg.arg not in ('self', 'cls'):
+                self._register(arg.arg)
+        for arg in node.args.posonlyargs:
+            if arg.arg not in ('self', 'cls'):
+                self._register(arg.arg)
+        for arg in node.args.kwonlyargs:
+            self._register(arg.arg)
+        if node.args.vararg:
+            self._register(node.args.vararg.arg)
+        if node.args.kwarg:
+            self._register(node.args.kwarg.arg)
+        self.generic_visit(node)
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        """Collect async function/method definitions."""
+        self._register(node.name)
+        if self._in_class:
+            self.name_gen.register_method(node.name)
+        # Collect argument names
+        for arg in node.args.args:
+            if arg.arg not in ('self', 'cls'):
+                self._register(arg.arg)
+        self.generic_visit(node)
+
+    def visit_ClassDef(self, node: ast.ClassDef) -> None:
+        """Collect class definitions and enter class context."""
+        self._register(node.name)
+
+        prev_in_class = self._in_class
+        self._in_class = True
+
+        # Collect class-level attribute assignments
+        for stmt in node.body:
+            if isinstance(stmt, ast.Assign):
+                for target in stmt.targets:
+                    if isinstance(target, ast.Name):
+                        self._register(target.id)
+                        self.name_gen.register_class_attribute(target.id)
+            elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
+                self._register(stmt.target.id)
+                self.name_gen.register_class_attribute(stmt.target.id)
+
+        self.generic_visit(node)
+        self._in_class = prev_in_class
+
+    def visit_Assign(self, node: ast.Assign) -> None:
+        """Collect variable assignments."""
+        for target in node.targets:
+            if isinstance(target, ast.Name):
+                self._register(target.id)
+            elif isinstance(target, ast.Attribute):
+                # self.x or cls.x
+                if (isinstance(target.value, ast.Name) and
+                    target.value.id in ('self', 'cls')):
+                    self._register(target.attr)
+                    self.name_gen.register_class_attribute(target.attr)
+        self.generic_visit(node)
+
+    def visit_AnnAssign(self, node: ast.AnnAssign) -> None:
+        """Collect annotated assignments."""
+        if isinstance(node.target, ast.Name):
+            self._register(node.target.id)
+        self.generic_visit(node)
+
+    def visit_NamedExpr(self, node: ast.NamedExpr) -> None:
+        """Collect walrus operator assignments."""
+        if isinstance(node.target, ast.Name):
+            self._register(node.target.id)
+        self.generic_visit(node)
+
 
 class NameObfuscator(ast.NodeTransformer):
     """
@@ -302,10 +436,27 @@ class NameObfuscator(ast.NodeTransformer):
         return node
 
     def visit_ImportFrom(self, node: ast.ImportFrom) -> ast.ImportFrom:
-        """Track imported names."""
+        """Track and optionally rename imported names for cross-file consistency."""
         for alias in node.names:
-            name = alias.asname if alias.asname else alias.name
-            if name != '*':
+            original_name = alias.name
+            if original_name == '*':
+                continue
+
+            # Check if this name was already obfuscated in a previous file
+            # (exists in name_gen.name_map from cross-file processing)
+            if original_name in self.name_gen.name_map:
+                # Rename the import to match the obfuscated name
+                obfuscated_name = self.name_gen.name_map[original_name]
+                alias.name = obfuscated_name
+                # If there's an asname, rename it too; otherwise don't set asname
+                # so that the obfuscated name is used directly in local scope
+                if alias.asname:
+                    alias.asname = self._rename(alias.asname)
+                # Don't add to import_names - the name in local scope is already
+                # in name_gen.name_map and will be handled by visit_Name
+            else:
+                # Track as imported name to prevent renaming (external module)
+                name = alias.asname if alias.asname else alias.name
                 self.import_names.add(name)
         return node
 
@@ -785,6 +936,24 @@ class Obfuscator:
                 py_files.append((py_file, relative_path))
         return py_files
 
+    def _collect_definitions_from_source(self, source: str) -> None:
+        """
+        Phase 1: Collect all definitions from source code without transforming.
+
+        This populates the name_generator with all names that will be obfuscated,
+        ensuring consistent mapping across all files in a multi-file project.
+        """
+        try:
+            tree = ast.parse(source)
+        except SyntaxError:
+            return  # Skip files that can't be parsed
+
+        collector = DefinitionCollector(
+            self.name_generator,
+            exclude_names=self.exclude_names
+        )
+        collector.visit(tree)
+
     def obfuscate_directory(
         self,
         input_dir: Path,
@@ -795,8 +964,14 @@ class Obfuscator:
         """
         Obfuscate all Python files in a directory with cross-file consistency.
 
-        This method ensures that names are consistently obfuscated across
-        all files, so imports between files continue to work correctly.
+        This method uses a two-phase approach to ensure names are consistently
+        obfuscated across all files:
+
+        Phase 1: Collect all definitions from all files (build complete name mapping)
+        Phase 2: Transform all files using the complete mapping
+
+        This ensures that imports between files continue to work correctly,
+        treating the entire directory as ONE unified application.
         """
         input_dir = Path(input_dir)
         output_dir = Path(output_dir)
@@ -808,7 +983,17 @@ class Obfuscator:
         # Collect all files to process
         py_files = self._collect_python_files(input_dir, pattern, exclude_patterns)
 
-        # Obfuscate all files using shared name generator
+        # PHASE 1: Collect all definitions from all files
+        # This builds the complete name mapping before any transformations
+        for py_file, relative_path in py_files:
+            try:
+                with open(py_file, 'r', encoding='utf-8') as f:
+                    source = f.read()
+                self._collect_definitions_from_source(source)
+            except Exception:
+                pass  # Skip files that can't be read; will be handled in Phase 2
+
+        # PHASE 2: Transform all files using the complete mapping
         for py_file, relative_path in py_files:
             output_path = output_dir / relative_path
 

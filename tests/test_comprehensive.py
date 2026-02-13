@@ -624,6 +624,429 @@ obj = SharedClass()
 
 
 # =============================================================================
+# Multi-Module Application Tests (Unified Project Obfuscation)
+# =============================================================================
+
+class TestMultiModuleAppObfuscation:
+    """
+    Test that a multi-module Python application is obfuscated as a unified project.
+
+    This tests the key requirement: obfuscation should treat all modules as part of
+    ONE application, not separate projects. Cross-module imports must work after
+    obfuscation.
+    """
+
+    def test_two_module_app_imports_work(self):
+        """Test a simple 2-module app where one imports from the other."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_dir = Path(tmpdir) / "myapp"
+            output_dir = Path(tmpdir) / "output"
+            input_dir.mkdir()
+
+            # Module 1: defines a class and function
+            (input_dir / "core.py").write_text('''
+class DataProcessor:
+    def __init__(self, value):
+        self.value = value
+    
+    def process(self):
+        return self.value * 2
+
+def helper_function(x):
+    return x + 10
+''')
+
+            # Module 2: main entry point that imports from core
+            (input_dir / "main.py").write_text('''
+from core import DataProcessor, helper_function
+
+def run_app():
+    proc = DataProcessor(5)
+    result = proc.process()
+    helper_result = helper_function(result)
+    return helper_result
+
+if __name__ == "__main__":
+    print(run_app())
+''')
+
+            # __init__.py to make it a package
+            (input_dir / "__init__.py").write_text('')
+
+            # Obfuscate as unified project
+            obf = Obfuscator(
+                rename_variables=True,
+                rename_functions=True,
+                rename_classes=True,
+                obfuscate_strings=False  # Keep simple for this test
+            )
+            results = obf.obfuscate_directory(input_dir, output_dir, exclude_patterns=[])
+
+            # All files should be processed
+            assert results.get("core.py") == "success"
+            assert results.get("main.py") == "success"
+
+            # Read the obfuscated outputs
+            core_obf = (output_dir / "core.py").read_text()
+            main_obf = (output_dir / "main.py").read_text()
+
+            # Original names should NOT appear in either file
+            assert "DataProcessor" not in core_obf
+            assert "helper_function" not in core_obf
+            assert "DataProcessor" not in main_obf
+            assert "helper_function" not in main_obf
+
+            # The obfuscated names should be consistent
+            mapping = obf.export_name_mapping()
+            obf_class_name = mapping.get("DataProcessor")
+            obf_func_name = mapping.get("helper_function")
+
+            # Both obfuscated names should appear in both files
+            assert obf_class_name in core_obf  # Definition
+            assert obf_class_name in main_obf  # Import and usage
+            assert obf_func_name in core_obf   # Definition
+            assert obf_func_name in main_obf   # Import and usage
+
+    def test_three_module_chain_app(self):
+        """Test a 3-module app with chained imports: main -> service -> model."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_dir = Path(tmpdir) / "app"
+            output_dir = Path(tmpdir) / "output"
+            input_dir.mkdir()
+
+            # Model layer
+            (input_dir / "model.py").write_text('''
+class UserModel:
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+    
+    def to_dict(self):
+        return {"name": self.name, "age": self.age}
+
+class ProductModel:
+    def __init__(self, title, price):
+        self.title = title
+        self.price = price
+''')
+
+            # Service layer imports model
+            (input_dir / "service.py").write_text('''
+from model import UserModel, ProductModel
+
+class UserService:
+    def create_user(self, name, age):
+        return UserModel(name, age)
+    
+    def validate_user(self, user):
+        return user.age >= 18
+
+class ProductService:
+    def create_product(self, title, price):
+        return ProductModel(title, price)
+''')
+
+            # Main imports service
+            (input_dir / "main.py").write_text('''
+from service import UserService, ProductService
+
+def main():
+    user_svc = UserService()
+    prod_svc = ProductService()
+    
+    user = user_svc.create_user("Alice", 25)
+    product = prod_svc.create_product("Widget", 99)
+    
+    return user.to_dict(), product.title
+
+if __name__ == "__main__":
+    result = main()
+    print(result)
+''')
+
+            # Obfuscate entire app
+            obf = Obfuscator(obfuscate_strings=False)
+            results = obf.obfuscate_directory(input_dir, output_dir, exclude_patterns=[])
+
+            # All should succeed
+            assert all(v == "success" for v in results.values())
+
+            # Check name consistency
+            mapping = obf.export_name_mapping()
+
+            # All custom classes should be renamed
+            assert "UserModel" in mapping
+            assert "ProductModel" in mapping
+            assert "UserService" in mapping
+            assert "ProductService" in mapping
+
+            # Read outputs and verify cross-file consistency
+            model_obf = (output_dir / "model.py").read_text()
+            service_obf = (output_dir / "service.py").read_text()
+            main_obf = (output_dir / "main.py").read_text()
+
+            # UserModel defined in model.py, imported in service.py
+            obf_user_model = mapping["UserModel"]
+            assert obf_user_model in model_obf
+            assert obf_user_model in service_obf
+
+            # UserService defined in service.py, imported in main.py
+            obf_user_service = mapping["UserService"]
+            assert obf_user_service in service_obf
+            assert obf_user_service in main_obf
+
+    def test_cli_app_with_submodules(self):
+        """Test a CLI-style app with config, utils, and main modules."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_dir = Path(tmpdir) / "cli_app"
+            output_dir = Path(tmpdir) / "output"
+            input_dir.mkdir()
+
+            # Config module
+            (input_dir / "config.py").write_text('''
+class AppConfig:
+    DEBUG = False
+    VERSION = "1.0.0"
+    
+    def __init__(self):
+        self.settings = {}
+    
+    def load_settings(self, path):
+        self.settings["loaded"] = True
+        return self.settings
+''')
+
+            # Utils module
+            (input_dir / "utils.py").write_text('''
+from config import AppConfig
+
+def get_config():
+    return AppConfig()
+
+def format_output(data):
+    return str(data)
+
+class OutputFormatter:
+    def format(self, data):
+        return format_output(data)
+''')
+
+            # CLI entry point
+            (input_dir / "cli.py").write_text('''
+from utils import get_config, OutputFormatter
+from config import AppConfig
+
+def run_cli(args):
+    config = get_config()
+    formatter = OutputFormatter()
+    
+    if args:
+        result = formatter.format(args[0])
+    else:
+        result = "no args"
+    
+    return result
+
+def main():
+    import sys
+    return run_cli(sys.argv[1:])
+''')
+
+            # Obfuscate
+            obf = Obfuscator(obfuscate_strings=False)
+            results = obf.obfuscate_directory(input_dir, output_dir, exclude_patterns=[])
+
+            assert all(v == "success" for v in results.values())
+
+            # Verify cross-module consistency
+            mapping = obf.export_name_mapping()
+
+            config_obf = (output_dir / "config.py").read_text()
+            utils_obf = (output_dir / "utils.py").read_text()
+            cli_obf = (output_dir / "cli.py").read_text()
+
+            # AppConfig: defined in config.py, used in utils.py and cli.py
+            obf_app_config = mapping["AppConfig"]
+            assert obf_app_config in config_obf
+            assert obf_app_config in utils_obf
+            assert obf_app_config in cli_obf
+
+            # get_config: defined in utils.py, used in cli.py
+            obf_get_config = mapping["get_config"]
+            assert obf_get_config in utils_obf
+            assert obf_get_config in cli_obf
+
+            # OutputFormatter: defined in utils.py, used in cli.py
+            obf_formatter = mapping["OutputFormatter"]
+            assert obf_formatter in utils_obf
+            assert obf_formatter in cli_obf
+
+    def test_obfuscated_app_executes_correctly(self):
+        """Test that obfuscated multi-module app actually runs correctly."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_dir = Path(tmpdir) / "runnable_app"
+            output_dir = Path(tmpdir) / "output"
+            input_dir.mkdir()
+
+            # Simple calculator module
+            (input_dir / "calculator.py").write_text('''
+class Calculator:
+    def add(self, a, b):
+        return a + b
+    
+    def multiply(self, a, b):
+        return a * b
+
+def create_calculator():
+    return Calculator()
+''')
+
+            # Main module that uses calculator - prints result when run
+            (input_dir / "main.py").write_text('''
+from calculator import Calculator, create_calculator
+
+def run():
+    calc = create_calculator()
+    sum_result = calc.add(3, 4)
+    mul_result = calc.multiply(5, 6)
+    return sum_result, mul_result
+
+if __name__ == "__main__":
+    result = run()
+    print(result)
+''')
+
+            # Obfuscate
+            obf = Obfuscator(obfuscate_strings=False)
+            obf.obfuscate_directory(input_dir, output_dir, exclude_patterns=[])
+
+            # Verify execution works by running main.py as a script
+            import subprocess
+            result = subprocess.run(
+                [sys.executable, str(output_dir / "main.py")],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            # Should output (7, 30) - add(3,4)=7, multiply(5,6)=30
+            assert result.returncode == 0, f"Execution failed: {result.stderr}"
+            assert "(7, 30)" in result.stdout
+
+    def test_shared_constants_across_modules(self):
+        """Test that shared constants/variables are consistently renamed."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_dir = Path(tmpdir) / "const_app"
+            output_dir = Path(tmpdir) / "output"
+            input_dir.mkdir()
+
+            # Constants module
+            (input_dir / "constants.py").write_text('''
+MAX_RETRIES = 5
+DEFAULT_TIMEOUT = 30
+ERROR_CODES = {1: "error", 2: "warning"}
+''')
+
+            # Module using constants
+            (input_dir / "worker.py").write_text('''
+from constants import MAX_RETRIES, DEFAULT_TIMEOUT, ERROR_CODES
+
+def do_work():
+    for attempt in range(MAX_RETRIES):
+        if attempt > 0:
+            pass  # retry logic
+    return DEFAULT_TIMEOUT
+
+def get_error_message(code):
+    return ERROR_CODES.get(code, "unknown")
+''')
+
+            # Obfuscate
+            obf = Obfuscator(obfuscate_strings=False)
+            obf.obfuscate_directory(input_dir, output_dir, exclude_patterns=[])
+
+            mapping = obf.export_name_mapping()
+
+            const_obf = (output_dir / "constants.py").read_text()
+            worker_obf = (output_dir / "worker.py").read_text()
+
+            # All constants should be renamed consistently
+            assert "MAX_RETRIES" in mapping
+            assert mapping["MAX_RETRIES"] in const_obf
+            assert mapping["MAX_RETRIES"] in worker_obf
+
+            assert "DEFAULT_TIMEOUT" in mapping
+            assert mapping["DEFAULT_TIMEOUT"] in const_obf
+            assert mapping["DEFAULT_TIMEOUT"] in worker_obf
+
+    def test_method_calls_across_modules(self):
+        """Test that method names are consistent when calling across modules."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            input_dir = Path(tmpdir) / "method_app"
+            output_dir = Path(tmpdir) / "output"
+            input_dir.mkdir()
+
+            # Base class module
+            (input_dir / "base.py").write_text('''
+class BaseHandler:
+    def handle_request(self, data):
+        return self.process_data(data)
+    
+    def process_data(self, data):
+        return data
+''')
+
+            # Derived class module
+            (input_dir / "handlers.py").write_text('''
+from base import BaseHandler
+
+class JsonHandler(BaseHandler):
+    def process_data(self, data):
+        return {"result": data}
+    
+    def validate_input(self, data):
+        return data is not None
+''')
+
+            # Usage module
+            (input_dir / "app.py").write_text('''
+from handlers import JsonHandler
+
+def process_request(data):
+    handler = JsonHandler()
+    if handler.validate_input(data):
+        return handler.handle_request(data)
+    return None
+''')
+
+            # Obfuscate
+            obf = Obfuscator(obfuscate_strings=False)
+            obf.obfuscate_directory(input_dir, output_dir, exclude_patterns=[])
+
+            mapping = obf.export_name_mapping()
+
+            # Method names should be in mapping
+            assert "handle_request" in mapping
+            assert "process_data" in mapping
+            assert "validate_input" in mapping
+
+            # Methods should be consistently renamed across files
+            base_obf = (output_dir / "base.py").read_text()
+            handlers_obf = (output_dir / "handlers.py").read_text()
+            app_obf = (output_dir / "app.py").read_text()
+
+            # handle_request defined in base, called in app
+            obf_handle = mapping["handle_request"]
+            assert obf_handle in base_obf
+            assert obf_handle in app_obf
+
+            # validate_input defined in handlers, called in app
+            obf_validate = mapping["validate_input"]
+            assert obf_validate in handlers_obf
+            assert obf_validate in app_obf
+
+
+# =============================================================================
 # Crypto Tests
 # =============================================================================
 

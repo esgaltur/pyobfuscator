@@ -175,6 +175,80 @@ Examples:
     )
     _add_obfuscate_arguments(obfuscate_parser)
 
+    # ===== PROTECT command (PYD encryption) =====
+    protect_parser = subparsers.add_parser(
+        'protect',
+        help='Protect code with PYD runtime encryption (AES-256-GCM)',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+PYD Protection creates encrypted bytecode with a compiled native runtime.
+This provides the strongest protection level.
+
+Examples:
+  # Protect entire project with PYD encryption
+  pyobfuscator protect -i ./my_project -o ./dist
+
+  # Protect with expiration date (365 days)
+  pyobfuscator protect -i ./src -o ./dist --expire-days 365
+
+  # Protect with machine binding
+  pyobfuscator protect -i ./src -o ./dist --bind-machine
+
+  # Get machine ID for binding
+  pyobfuscator protect --machine-id
+        '''
+    )
+    protect_parser.add_argument(
+        '-i', '--input',
+        help='Input file or directory to protect'
+    )
+    protect_parser.add_argument(
+        '-o', '--output',
+        help='Output directory for protected files'
+    )
+    protect_parser.add_argument(
+        '--license-info',
+        default='PyObfuscator Protected',
+        help='License/author info to embed (default: PyObfuscator Protected)'
+    )
+    protect_parser.add_argument(
+        '--expire-days',
+        type=int,
+        default=None,
+        help='Expiration in days from now (optional)'
+    )
+    protect_parser.add_argument(
+        '--bind-machine',
+        action='store_true',
+        help='Bind to current machine (hardware lock)'
+    )
+    protect_parser.add_argument(
+        '--machine-id',
+        action='store_true',
+        help='Print current machine ID and exit'
+    )
+    protect_parser.add_argument(
+        '--no-anti-debug',
+        action='store_true',
+        help='Disable anti-debugging protection'
+    )
+    protect_parser.add_argument(
+        '--no-build-pyd',
+        action='store_true',
+        help='Skip PYD compilation (generate .pyx only)'
+    )
+    protect_parser.add_argument(
+        '--exclude-patterns',
+        nargs='+',
+        default=['__pycache__', '*.pyc', 'test_*', '*_test.py', 'tests/'],
+        help='File patterns to exclude'
+    )
+    protect_parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Verbose output'
+    )
+
     return parser
 
 
@@ -330,6 +404,28 @@ def _obfuscate_single_file(
     verbose: bool
 ) -> int:
     """Obfuscate a single file. Returns exit code."""
+    # If output_path is an existing directory, put the file inside it
+    if output_path.is_dir():
+        output_path = output_path / input_path.name
+    # If output_path doesn't exist but looks like a directory (no extension), create it
+    elif not output_path.suffix and not output_path.exists():
+        output_path.mkdir(parents=True, exist_ok=True)
+        output_path = output_path / input_path.name
+    # Ensure parent directory exists
+    else:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Check if file has local imports - warn user
+    try:
+        content = input_path.read_text(encoding='utf-8')
+        if 'from .' in content or 'from app' in content or 'import app' in content:
+            print("Warning: This file appears to have local imports.", file=sys.stderr)
+            print("         For multi-file projects, obfuscate the entire directory:", file=sys.stderr)
+            print(f"         pyobfuscator obfuscate -i {input_path.parent} -o {output_path.parent}", file=sys.stderr)
+            print("", file=sys.stderr)
+    except Exception:
+        pass
+
     if verbose:
         print(f"Obfuscating {input_path}...")
 
@@ -348,26 +444,42 @@ def _obfuscate_directory(
     parsed: argparse.Namespace
 ) -> int:
     """Obfuscate a directory. Returns exit code."""
-    if parsed.verbose:
-        print(f"Obfuscating directory {input_path}...")
+    verbose = getattr(parsed, 'verbose', False)
 
-    recursive = parsed.recursive and not parsed.no_recursive
+    # Ensure output directory exists
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    if verbose:
+        print(f"Obfuscating directory: {input_path}")
+        print(f"Output directory: {output_path}")
+        print("")
+
+    recursive = getattr(parsed, 'recursive', True) and not getattr(parsed, 'no_recursive', False)
+    exclude_patterns = getattr(parsed, 'exclude_patterns', ['__pycache__', '*.pyc', 'test_*', '*_test.py'])
+
     results = obfuscator.obfuscate_directory(
         input_path,
         output_path,
         recursive=recursive,
-        exclude_patterns=parsed.exclude_patterns
+        exclude_patterns=exclude_patterns
     )
 
     success_count = sum(1 for v in results.values() if v == "success")
     error_count = len(results) - success_count
 
-    if parsed.verbose:
-        for file_path, result in results.items():
-            status = "✓" if result == "success" else "✗"
-            print(f"  {status} {file_path}: {result}")
+    if verbose:
+        print("\nResults:")
+        for file_path, result in sorted(results.items()):
+            status = "[OK]" if result == "success" else "[FAIL]"
+            print(f"  {status} {file_path}")
+            if result != "success":
+                print(f"        Error: {result}")
 
-    print(f"Obfuscation complete! {success_count} files processed, {error_count} errors")
+    print(f"\nObfuscation complete!")
+    print(f"  - Files processed: {success_count}")
+    print(f"  - Errors: {error_count}")
+    print(f"  - Output: {output_path}")
+
     return 1 if error_count > 0 else 0
 
 
@@ -560,6 +672,124 @@ def _handle_obfuscate(parsed: argparse.Namespace) -> int:
         return 1
 
 
+def _handle_protect(parsed: argparse.Namespace) -> int:
+    """Handle the protect command - PYD runtime encryption."""
+    from .pyd_protection import PydRuntimeProtector
+    from datetime import datetime, timedelta
+
+    verbose = getattr(parsed, 'verbose', False)
+
+    # Handle --machine-id flag
+    if getattr(parsed, 'machine_id', False):
+        machine_id = PydRuntimeProtector.get_machine_id()
+        print(f"Machine ID: {machine_id}")
+        print(f"\nUse this in your config or with --allowed-machines to bind code to this machine.")
+        return 0
+
+    # Validate input/output
+    if not parsed.input or not parsed.output:
+        print("Error: -i/--input and -o/--output are required for protection", file=sys.stderr)
+        print("Use --machine-id to get the current machine ID", file=sys.stderr)
+        return 1
+
+    input_path = Path(parsed.input).resolve()
+    output_path = Path(parsed.output).resolve()
+
+    if not input_path.exists():
+        print(f"Error: Input path does not exist: {input_path}", file=sys.stderr)
+        return 1
+
+    # Build protector options
+    expiration_date = None
+    if parsed.expire_days:
+        expiration_date = datetime.now() + timedelta(days=parsed.expire_days)
+
+    allowed_machines = []
+    if parsed.bind_machine:
+        machine_id = PydRuntimeProtector.get_machine_id()
+        allowed_machines = [machine_id]
+        if verbose:
+            print(f"Binding to machine: {machine_id}")
+
+    # Create protector
+    protector = PydRuntimeProtector(
+        license_info=parsed.license_info,
+        expiration_date=expiration_date,
+        allowed_machines=allowed_machines,
+        anti_debug=not parsed.no_anti_debug,
+    )
+
+    build_pyd = not parsed.no_build_pyd
+
+    if verbose:
+        print(f"PYD Protection Settings:")
+        print(f"  - License: {parsed.license_info}")
+        print(f"  - Expiration: {expiration_date or 'None'}")
+        print(f"  - Machine binding: {'Yes' if allowed_machines else 'No'}")
+        print(f"  - Anti-debug: {'Yes' if not parsed.no_anti_debug else 'No'}")
+        print(f"  - Build PYD: {'Yes' if build_pyd else 'No (pyx only)'}")
+        print("")
+
+    try:
+        if input_path.is_file():
+            # Single file protection
+            print(f"Protecting file: {input_path}")
+            result = protector.protect_file(
+                input_path,
+                output_path,
+                build_pyd=build_pyd
+            )
+
+            print(f"\nProtection complete!")
+            print(f"  - Protected file: {result['protected']}")
+            if result.get('pyd'):
+                print(f"  - PYD runtime: {result['pyd']}")
+            elif result.get('pyx'):
+                print(f"  - Cython source: {result['pyx']}")
+                print(f"  - Build with: cd {output_path} && python setup.py build_ext --inplace")
+
+        elif input_path.is_dir():
+            # Directory protection
+            print(f"Protecting directory: {input_path}")
+            print(f"Output directory: {output_path}")
+
+            result = protector.protect_directory(
+                input_path,
+                output_path,
+                recursive=True,
+                exclude_patterns=parsed.exclude_patterns,
+                build_pyd=build_pyd
+            )
+
+            file_count = len(result.get('files', []))
+
+            if verbose:
+                print(f"\nProtected files:")
+                for f in result.get('files', []):
+                    print(f"  - {f}")
+
+            print(f"\nProtection complete!")
+            print(f"  - Files protected: {file_count}")
+            print(f"  - Output: {output_path}")
+            if result.get('pyd'):
+                print(f"  - PYD runtime: {result['pyd']}")
+            elif result.get('pyx'):
+                print(f"  - Cython source: {result['pyx']}")
+                print(f"  - Build with: cd {output_path} && python setup.py build_ext --inplace")
+        else:
+            print(f"Error: Input is neither a file nor directory: {input_path}", file=sys.stderr)
+            return 1
+
+        return 0
+
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        if verbose:
+            import traceback
+            traceback.print_exc()
+        return 1
+
+
 def main(args: Optional[List[str]] = None) -> int:
     """Main entry point for the CLI."""
     # Create main parser with subcommands
@@ -577,6 +807,9 @@ def main(args: Optional[List[str]] = None) -> int:
 
     elif parsed.command == 'obfuscate':
         return _handle_obfuscate(parsed)
+
+    elif parsed.command == 'protect':
+        return _handle_protect(parsed)
 
     elif hasattr(parsed, 'input') and parsed.input and hasattr(parsed, 'output') and parsed.output:
         # Backwards compatibility: -i/-o without subcommand
