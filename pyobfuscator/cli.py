@@ -1,30 +1,185 @@
 # -*- coding: utf-8 -*-
 """
 Command-line interface for PyObfuscator.
+Supports multiple commands:
+- obfuscate: Obfuscate Python source code
+- analyze: Analyze a project and generate configuration
+- init: Initialize a pyobfuscator.json config file
 """
 
 import argparse
+import json
 import sys
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 
 from .obfuscator import Obfuscator
 
 
-def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
-    """Parse command line arguments."""
+def load_config(config_path: Path) -> Dict[str, Any]:
+    """Load configuration from a JSON or TOML file."""
+    if not config_path.exists():
+        return {}
+
+    content = config_path.read_text(encoding='utf-8')
+
+    if config_path.suffix == '.json':
+        return json.loads(content)
+    elif config_path.suffix == '.toml':
+        # Try to use tomllib (Python 3.11+) or tomli
+        try:
+            import tomllib
+            return tomllib.loads(content)
+        except ImportError:
+            try:
+                import tomli
+                return tomli.loads(content)
+            except ImportError:
+                print("Warning: TOML config requires Python 3.11+ or 'tomli' package", file=sys.stderr)
+                return {}
+    return {}
+
+
+def find_config() -> Optional[Path]:
+    """Find configuration file in current directory."""
+    for name in ['pyobfuscator.json', 'pyobfuscator.toml', '.pyobfuscator.json', '.pyobfuscator.toml']:
+        path = Path(name)
+        if path.exists():
+            return path
+    return None
+
+
+def create_main_parser() -> argparse.ArgumentParser:
+    """Create the main argument parser with subcommands."""
     parser = argparse.ArgumentParser(
         prog='pyobfuscator',
-        description='Obfuscate Python source code',
+        description='Python code obfuscation tool with auto-detection and framework support',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
+Commands:
+  obfuscate   Obfuscate Python source code (default if -i/-o provided)
+  analyze     Analyze a project and show detected frameworks/entry points
+  init        Generate a pyobfuscator.json config file for a project
+
 Examples:
+  # Analyze a project and generate config
+  pyobfuscator init ./my_project
+  
+  # Or analyze without saving
+  pyobfuscator analyze ./my_project
+
+  # Obfuscate using auto-detected config
+  pyobfuscator obfuscate -i ./my_project -o ./dist
+
+  # Single file (short form)
   pyobfuscator -i script.py -o obfuscated.py
-  pyobfuscator -i src/ -o dist/ --recursive
-  pyobfuscator -i module/ -o dist/ --compress --string-method xor
+
+  # PySide6 app with framework preset
+  pyobfuscator -i my_app/ -o dist/ --frameworks pyside6
         '''
     )
 
+    parser.add_argument(
+        '--version',
+        action='version',
+        version='%(prog)s 1.0.0'
+    )
+
+    # For backwards compatibility: allow pyobfuscator -i src -o dist
+    parser.add_argument('-i', '--input', help='Input file or directory (shortcut for obfuscate)')
+    parser.add_argument('-o', '--output', help='Output file or directory (shortcut for obfuscate)')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
+
+    subparsers = parser.add_subparsers(dest='command', help='Command to run')
+
+    # ===== ANALYZE command =====
+    analyze_parser = subparsers.add_parser(
+        'analyze',
+        help='Analyze a project and show detected frameworks, entry points, and public API',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  pyobfuscator analyze ./my_project
+  pyobfuscator analyze ./my_project --format json
+  pyobfuscator analyze . --verbose
+        '''
+    )
+    analyze_parser.add_argument(
+        'project_path',
+        nargs='?',
+        default='.',
+        help='Path to the project directory (default: current directory)'
+    )
+    analyze_parser.add_argument(
+        '--format',
+        choices=['text', 'json'],
+        default='text',
+        help='Output format (default: text)'
+    )
+    analyze_parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Show detailed analysis'
+    )
+
+    # ===== INIT command =====
+    init_parser = subparsers.add_parser(
+        'init',
+        help='Analyze a project and generate a pyobfuscator.json config file',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  pyobfuscator init ./my_project
+  pyobfuscator init . --output pyobfuscator.toml --format toml
+  pyobfuscator init ./my_app --verbose
+        '''
+    )
+    init_parser.add_argument(
+        'project_path',
+        nargs='?',
+        default='.',
+        help='Path to the project directory (default: current directory)'
+    )
+    init_parser.add_argument(
+        '-o', '--output',
+        help='Output config file path (default: pyobfuscator.json in project root)'
+    )
+    init_parser.add_argument(
+        '--format',
+        choices=['json', 'toml'],
+        default='json',
+        help='Config file format (default: json)'
+    )
+    init_parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Show analysis summary'
+    )
+    init_parser.add_argument(
+        '--force',
+        action='store_true',
+        help='Overwrite existing config file'
+    )
+
+    # ===== OBFUSCATE command =====
+    obfuscate_parser = subparsers.add_parser(
+        'obfuscate',
+        help='Obfuscate Python source code',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog='''
+Examples:
+  pyobfuscator obfuscate -i script.py -o obfuscated.py
+  pyobfuscator obfuscate -i src/ -o dist/ --frameworks pyside6
+  pyobfuscator obfuscate -i app/ -o dist/ --config pyobfuscator.json
+        '''
+    )
+    _add_obfuscate_arguments(obfuscate_parser)
+
+    return parser
+
+
+def _add_obfuscate_arguments(parser: argparse.ArgumentParser) -> None:
+    """Add obfuscation arguments to a parser."""
     parser.add_argument(
         '-i', '--input',
         required=True,
@@ -115,18 +270,39 @@ Examples:
     )
 
     parser.add_argument(
+        '--frameworks',
+        nargs='+',
+        default=[],
+        choices=['pyside6', 'pyqt6', 'flask', 'django', 'fastapi', 'asyncio', 'click', 'sqlalchemy'],
+        help='Framework presets - preserves framework-specific names (e.g., --frameworks pyside6 sqlalchemy)'
+    )
+
+    parser.add_argument(
+        '--entry-points',
+        nargs='+',
+        default=[],
+        help='Function/class names to preserve (e.g., --entry-points main App MainWindow)'
+    )
+
+    parser.add_argument(
+        '--preserve-public',
+        action='store_true',
+        help='Preserve names listed in __all__ and public names (without underscore prefix)'
+    )
+
+    parser.add_argument(
+        '--config',
+        type=str,
+        default=None,
+        help='Path to config file (JSON or TOML). Auto-detects pyobfuscator.json/toml in current directory'
+    )
+
+    parser.add_argument(
         '-v', '--verbose',
         action='store_true',
         help='Verbose output'
     )
 
-    parser.add_argument(
-        '--version',
-        action='version',
-        version='%(prog)s 1.0.0'
-    )
-
-    return parser.parse_args(args)
 
 
 def _create_obfuscator(parsed: argparse.Namespace) -> Obfuscator:
@@ -140,7 +316,10 @@ def _create_obfuscator(parsed: argparse.Namespace) -> Obfuscator:
         remove_docstrings=not parsed.keep_docstrings,
         name_style=parsed.name_style,
         string_method=parsed.string_method,
-        exclude_names=set(parsed.exclude)
+        exclude_names=set(parsed.exclude),
+        frameworks=parsed.frameworks if parsed.frameworks else None,
+        entry_points=parsed.entry_points if parsed.entry_points else None,
+        preserve_public_api=parsed.preserve_public
     )
 
 
@@ -192,9 +371,161 @@ def _obfuscate_directory(
     return 1 if error_count > 0 else 0
 
 
-def main(args: Optional[List[str]] = None) -> int:
-    """Main entry point for the CLI."""
-    parsed = parse_args(args)
+def _merge_config(parsed: argparse.Namespace, config: Dict[str, Any]) -> argparse.Namespace:
+    """Merge config file settings with CLI arguments (CLI takes precedence)."""
+    # Map config keys to argparse attributes
+    config_mapping = {
+        'frameworks': 'frameworks',
+        'entry_points': 'entry_points',
+        'exclude': 'exclude',
+        'exclude_patterns': 'exclude_patterns',
+        'string_method': 'string_method',
+        'name_style': 'name_style',
+        'compress': 'compress',
+        'keep_docstrings': 'keep_docstrings',
+        'preserve_public': 'preserve_public',
+        'no_rename_vars': 'no_rename_vars',
+        'no_rename_funcs': 'no_rename_funcs',
+        'no_rename_classes': 'no_rename_classes',
+        'no_string_obfuscation': 'no_string_obfuscation',
+        'verbose': 'verbose',
+    }
+
+    for config_key, attr_name in config_mapping.items():
+        if config_key in config:
+            current_value = getattr(parsed, attr_name, None)
+            config_value = config[config_key]
+
+            # For lists, merge them (CLI values + config values)
+            if isinstance(config_value, list) and isinstance(current_value, list):
+                merged = list(set(current_value + config_value))
+                setattr(parsed, attr_name, merged)
+            # For booleans/strings, only use config if CLI didn't set it
+            elif current_value in (None, False, [], 'random', 'xor'):
+                setattr(parsed, attr_name, config_value)
+
+    return parsed
+
+
+def _handle_analyze(parsed: argparse.Namespace) -> int:
+    """Handle the analyze command."""
+    from .analyzer import ProjectAnalyzer
+
+    project_path = Path(parsed.project_path).resolve()
+
+    if not project_path.exists():
+        print(f"Error: Project path does not exist: {project_path}", file=sys.stderr)
+        return 1
+
+    analyzer = ProjectAnalyzer(str(project_path))
+    result = analyzer.analyze()
+
+    if parsed.format == 'json':
+        # Output as JSON
+        output = {
+            'project_path': str(project_path),
+            'frameworks': sorted(result.detected_frameworks),
+            'entry_points': sorted(result.entry_points),
+            'public_api': sorted(result.public_api),
+            'packages': sorted(set(m.package.split('.')[0] for m in result.modules.values() if m.package)),
+            'total_files': len(result.modules),
+            'warnings': result.warnings,
+            'recommendations': result.recommendations,
+        }
+        print(json.dumps(output, indent=2, ensure_ascii=False))
+    else:
+        # Print human-readable summary
+        analyzer.print_summary()
+
+    return 0
+
+
+def _handle_init(parsed: argparse.Namespace) -> int:
+    """Handle the init command - generate config file."""
+    from .analyzer import ProjectAnalyzer
+
+    project_path = Path(parsed.project_path).resolve()
+
+    if not project_path.exists():
+        print(f"Error: Project path does not exist: {project_path}", file=sys.stderr)
+        return 1
+
+    # Determine output path
+    if parsed.output:
+        output_path = Path(parsed.output)
+    else:
+        output_path = project_path / f'pyobfuscator.{parsed.format}'
+
+    # Check if file exists
+    if output_path.exists() and not parsed.force:
+        print(f"Error: Config file already exists: {output_path}", file=sys.stderr)
+        print("Use --force to overwrite.", file=sys.stderr)
+        return 1
+
+    # Analyze project
+    print(f"Analyzing project: {project_path}")
+    analyzer = ProjectAnalyzer(str(project_path))
+    result = analyzer.analyze()
+
+    # Print summary if verbose
+    if parsed.verbose:
+        analyzer.print_summary()
+
+    # Save config
+    analyzer.save_config(output_path, format=parsed.format)
+
+    print(f"\nConfiguration saved to: {output_path}")
+    print(f"  - Frameworks detected: {', '.join(sorted(result.detected_frameworks)) or 'none'}")
+    print(f"  - Entry points: {len(result.entry_points)}")
+    print(f"  - Public API names: {len(result.public_api)}")
+
+    if result.recommendations:
+        print(f"\nRecommendations:")
+        for rec in result.recommendations[:3]:
+            print(f"  * {rec}")
+
+    print(f"\nNext steps:")
+    print(f"  1. Review and edit {output_path}")
+    print(f"  2. Run: pyobfuscator obfuscate -i {project_path} -o ./dist")
+
+    return 0
+
+
+def _handle_obfuscate(parsed: argparse.Namespace) -> int:
+    """Handle the obfuscate command."""
+    # Load config file if specified or auto-detect
+    config: Dict[str, Any] = {}
+    if hasattr(parsed, 'config') and parsed.config:
+        config_path = Path(parsed.config)
+        if not config_path.exists():
+            print(f"Error: Config file not found: {config_path}", file=sys.stderr)
+            return 1
+        config = load_config(config_path)
+        if parsed.verbose:
+            print(f"Loaded config from {config_path}")
+    else:
+        # Auto-detect config file in input directory
+        input_path = Path(parsed.input)
+        if input_path.is_dir():
+            for name in ['pyobfuscator.json', 'pyobfuscator.toml']:
+                config_file = input_path / name
+                if config_file.exists():
+                    config = load_config(config_file)
+                    if parsed.verbose:
+                        print(f"Auto-detected config from {config_file}")
+                    break
+
+        # Also check current directory
+        if not config:
+            auto_config = find_config()
+            if auto_config:
+                config = load_config(auto_config)
+                if parsed.verbose:
+                    print(f"Auto-detected config from {auto_config}")
+
+    # Merge config with CLI arguments
+    if config:
+        parsed = _merge_config(parsed, config)
 
     input_path = Path(parsed.input)
     output_path = Path(parsed.output)
@@ -204,6 +535,12 @@ def main(args: Optional[List[str]] = None) -> int:
         return 1
 
     obfuscator = _create_obfuscator(parsed)
+
+    # Print summary if verbose
+    if parsed.verbose:
+        print(f"Frameworks: {parsed.frameworks or 'none'}")
+        print(f"Entry points: {parsed.entry_points or 'none'}")
+        print(f"Excluded names: {len(parsed.exclude)} custom exclusions")
 
     try:
         if input_path.is_file():
@@ -222,6 +559,43 @@ def main(args: Optional[List[str]] = None) -> int:
         print(f"Error: {e}", file=sys.stderr)
         return 1
 
+
+def main(args: Optional[List[str]] = None) -> int:
+    """Main entry point for the CLI."""
+    # Create main parser with subcommands
+    parser = create_main_parser()
+
+    # Parse args
+    parsed = parser.parse_args(args)
+
+    # Determine which command to run
+    if parsed.command == 'analyze':
+        return _handle_analyze(parsed)
+
+    elif parsed.command == 'init':
+        return _handle_init(parsed)
+
+    elif parsed.command == 'obfuscate':
+        return _handle_obfuscate(parsed)
+
+    elif hasattr(parsed, 'input') and parsed.input and hasattr(parsed, 'output') and parsed.output:
+        # Backwards compatibility: -i/-o without subcommand
+        # Re-parse with obfuscate subcommand
+        new_args = ['obfuscate', '-i', parsed.input, '-o', parsed.output]
+        if parsed.verbose:
+            new_args.append('-v')
+        # Add any remaining args
+        if args:
+            for arg in args:
+                if arg not in ['-i', '--input', '-o', '--output', '-v', '--verbose',
+                               parsed.input, parsed.output]:
+                    new_args.append(arg)
+        return main(new_args)
+
+    else:
+        # No command specified, show help
+        parser.print_help()
+        return 0
 
 
 if __name__ == '__main__':

@@ -1,0 +1,13 @@
+{
+    "frameworks": ["pyside6"],
+    "entry_points": ["main", "MainWindow", "App", "Application"],
+    "exclude": [],
+    "exclude_patterns": ["__pycache__", "*.pyc", "test_*", "*_test.py", "conftest.py"],
+    "string_method": "xor",
+    "name_style": "random",
+    "compress": false,
+    "keep_docstrings": false,
+    "preserve_public": false,
+    "verbose": true
+}
+

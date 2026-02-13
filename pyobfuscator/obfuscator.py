@@ -160,6 +160,109 @@ class NameObfuscator(ast.NodeTransformer):
         'pytest', 'unittest', 'test', 'setup', 'teardown',
     }
 
+    # Framework-specific names that should be preserved
+    FRAMEWORK_PRESETS = {
+        'pyside6': {
+            # PySide6/Qt signal-slot system
+            'Signal', 'Slot', 'Property', 'QObject', 'QWidget', 'QMainWindow',
+            'QApplication', 'QDialog', 'QThread', 'QTimer', 'QEvent',
+            'emit', 'connect', 'disconnect', 'sender', 'receivers',
+            'blockSignals', 'signalsBlocked', 'moveToThread', 'thread',
+            # Common Qt methods that must be preserved
+            'show', 'hide', 'close', 'exec', 'exec_', 'accept', 'reject',
+            'setWindowTitle', 'setGeometry', 'resize', 'move', 'raise_',
+            'lower', 'setParent', 'parent', 'children', 'findChild', 'findChildren',
+            'setLayout', 'layout', 'update', 'repaint', 'setStyleSheet',
+            'setEnabled', 'setVisible', 'setHidden', 'setFocus', 'hasFocus',
+            'event', 'eventFilter', 'installEventFilter', 'removeEventFilter',
+            'paintEvent', 'resizeEvent', 'closeEvent', 'showEvent', 'hideEvent',
+            'keyPressEvent', 'keyReleaseEvent', 'mousePressEvent', 'mouseReleaseEvent',
+            'mouseMoveEvent', 'mouseDoubleClickEvent', 'wheelEvent', 'enterEvent',
+            'leaveEvent', 'focusInEvent', 'focusOutEvent', 'dragEnterEvent',
+            'dragMoveEvent', 'dragLeaveEvent', 'dropEvent', 'timerEvent',
+            # QML integration
+            'setContextProperty', 'rootContext', 'rootObject', 'load', 'setSource',
+            # Property system
+            'property', 'setProperty', 'dynamicPropertyNames',
+        },
+        'pyqt6': {
+            # Same as PySide6 mostly
+            'pyqtSignal', 'pyqtSlot', 'pyqtProperty', 'QObject', 'QWidget',
+            'QMainWindow', 'QApplication', 'QDialog', 'QThread', 'QTimer',
+            'emit', 'connect', 'disconnect', 'sender', 'receivers',
+            'show', 'hide', 'close', 'exec', 'exec_', 'accept', 'reject',
+            'setWindowTitle', 'setGeometry', 'resize', 'move',
+            'setLayout', 'layout', 'update', 'repaint', 'setStyleSheet',
+            'paintEvent', 'resizeEvent', 'closeEvent', 'showEvent', 'hideEvent',
+            'keyPressEvent', 'keyReleaseEvent', 'mousePressEvent', 'mouseReleaseEvent',
+        },
+        'flask': {
+            # Flask framework
+            'Flask', 'Blueprint', 'request', 'Response', 'make_response',
+            'redirect', 'url_for', 'render_template', 'jsonify', 'abort',
+            'session', 'g', 'current_app', 'flash', 'get_flashed_messages',
+            'route', 'before_request', 'after_request', 'teardown_request',
+            'before_first_request', 'errorhandler', 'context_processor',
+            'app_context', 'request_context', 'test_client', 'test_request_context',
+            # Flask-SQLAlchemy
+            'db', 'Model', 'Column', 'Integer', 'String', 'Text', 'Boolean',
+            'DateTime', 'ForeignKey', 'relationship', 'backref',
+        },
+        'django': {
+            # Django framework
+            'models', 'Model', 'CharField', 'TextField', 'IntegerField',
+            'BooleanField', 'DateTimeField', 'ForeignKey', 'ManyToManyField',
+            'OneToOneField', 'Manager', 'QuerySet', 'Meta', 'objects',
+            'get', 'filter', 'exclude', 'create', 'update', 'delete', 'save',
+            'HttpResponse', 'HttpRequest', 'JsonResponse', 'render', 'redirect',
+            'get_object_or_404', 'get_list_or_404', 'reverse', 'reverse_lazy',
+            'View', 'TemplateView', 'ListView', 'DetailView', 'CreateView',
+            'UpdateView', 'DeleteView', 'FormView', 'RedirectView',
+            'get_queryset', 'get_context_data', 'get_object', 'form_valid',
+            'path', 'include', 'urlpatterns', 'admin', 'site',
+        },
+        'fastapi': {
+            # FastAPI framework
+            'FastAPI', 'APIRouter', 'Depends', 'HTTPException', 'Request',
+            'Response', 'Body', 'Query', 'Path', 'Header', 'Cookie', 'Form',
+            'File', 'UploadFile', 'BackgroundTasks', 'WebSocket',
+            'get', 'post', 'put', 'delete', 'patch', 'options', 'head',
+            'status_code', 'response_model', 'dependencies', 'tags',
+            'startup', 'shutdown', 'on_event', 'middleware',
+            # Pydantic
+            'BaseModel', 'Field', 'validator', 'root_validator', 'Config',
+        },
+        'asyncio': {
+            # Asyncio patterns
+            'async', 'await', 'asyncio', 'coroutine', 'Task', 'Future',
+            'gather', 'wait', 'wait_for', 'create_task', 'ensure_future',
+            'run', 'sleep', 'Event', 'Lock', 'Semaphore', 'Queue',
+            'StreamReader', 'StreamWriter', 'start_server', 'open_connection',
+        },
+        'click': {
+            # Click CLI framework
+            'click', 'command', 'group', 'option', 'argument', 'pass_context',
+            'Context', 'echo', 'secho', 'prompt', 'confirm', 'Choice',
+        },
+        'sqlalchemy': {
+            # SQLAlchemy ORM
+            'Base', 'Session', 'engine', 'create_engine', 'sessionmaker',
+            'Column', 'Integer', 'String', 'Text', 'Boolean', 'DateTime',
+            'ForeignKey', 'relationship', 'backref', 'query', 'add', 'commit',
+            'rollback', 'flush', 'expire', 'refresh', 'delete', 'merge',
+        },
+    }
+
+    @classmethod
+    def get_framework_excludes(cls, frameworks: List[str]) -> Set[str]:
+        """Get all names to exclude for specified frameworks."""
+        excludes: Set[str] = set()
+        for framework in frameworks:
+            framework_lower = framework.lower()
+            if framework_lower in cls.FRAMEWORK_PRESETS:
+                excludes.update(cls.FRAMEWORK_PRESETS[framework_lower])
+        return excludes
+
     def __init__(self, name_generator: NameGenerator, exclude_names: Optional[Set[str]] = None,
                  rename_methods: bool = True, rename_attributes: bool = True):
         self.name_gen = name_generator
@@ -497,6 +600,9 @@ class Obfuscator:
         # Or use obfuscate_directory() for automatic handling
     """
 
+    # Available framework presets for easy configuration
+    FRAMEWORK_PRESETS = NameObfuscator.FRAMEWORK_PRESETS
+
     def __init__(
         self,
         rename_variables: bool = True,
@@ -511,7 +617,10 @@ class Obfuscator:
         name_style: str = "random",
         string_method: str = "xor",
         exclude_names: Optional[Set[str]] = None,
-        name_generator: Optional[NameGenerator] = None
+        name_generator: Optional[NameGenerator] = None,
+        frameworks: Optional[List[str]] = None,
+        preserve_public_api: bool = False,
+        entry_points: Optional[List[str]] = None
     ):
         """
         Initialize the obfuscator.
@@ -530,6 +639,10 @@ class Obfuscator:
             string_method: String obfuscation method ("xor", "hex", "base64")
             exclude_names: Names to never obfuscate
             name_generator: Shared NameGenerator for cross-file obfuscation
+            frameworks: List of framework presets to use (e.g., ['pyside6', 'sqlalchemy'])
+                       Available: pyside6, pyqt6, flask, django, fastapi, asyncio, click, sqlalchemy
+            preserve_public_api: If True, don't rename names in __all__ or public names (no underscore prefix)
+            entry_points: List of function/class names that should never be renamed (e.g., ['main', 'App'])
         """
         self.rename_variables = rename_variables
         self.rename_functions = rename_functions
@@ -542,7 +655,20 @@ class Obfuscator:
         self.remove_docstrings = remove_docstrings
         self.name_style = name_style
         self.string_method = string_method
-        self.exclude_names = exclude_names or set()
+        self.preserve_public_api = preserve_public_api
+
+        # Build exclude names from multiple sources
+        combined_excludes: Set[str] = set(exclude_names or set())
+
+        # Add framework-specific exclusions
+        if frameworks:
+            combined_excludes.update(NameObfuscator.get_framework_excludes(frameworks))
+
+        # Add entry points
+        if entry_points:
+            combined_excludes.update(entry_points)
+
+        self.exclude_names = combined_excludes
 
         # Use provided name_generator or create new one
         # Sharing name_generator enables cross-file obfuscation
