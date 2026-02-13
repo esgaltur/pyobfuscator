@@ -36,7 +36,7 @@ from .transformers import (
     DistributedTimingChecker,
 )
 
-__version__ = "1.0.0"
+__version__ = "1.0.2"
 
 # Available framework presets
 FRAMEWORK_PRESETS = list(NameObfuscator.FRAMEWORK_PRESETS.keys())
