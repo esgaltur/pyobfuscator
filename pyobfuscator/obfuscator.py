@@ -20,6 +20,8 @@ import hashlib
 from typing import Dict, Set, Optional, List, Tuple
 from pathlib import Path
 
+from .constants import ReservedNames, FrameworkPresets, DEFAULT_EXCLUDE_PATTERNS
+
 
 class NameGenerator:
     """
@@ -125,26 +127,11 @@ class DefinitionCollector(ast.NodeVisitor):
     before any transformations are applied.
     """
 
-    # Names that should never be collected for obfuscation
-    RESERVED = {
-        'self', 'cls', 'super', '__init__', '__new__', '__del__', '__repr__',
-        '__str__', '__bytes__', '__format__', '__lt__', '__le__', '__eq__',
-        '__ne__', '__gt__', '__ge__', '__hash__', '__bool__', '__getattr__',
-        'True', 'False', 'None', 'Exception', 'BaseException',
-        'print', 'range', 'len', 'str', 'int', 'float', 'bool', 'list', 'dict',
-        'tuple', 'set', 'frozenset', 'bytes', 'bytearray', 'type', 'object',
-        'open', 'input', 'abs', 'all', 'any', 'ascii', 'bin', 'callable',
-        'chr', 'classmethod', 'compile', 'complex', 'delattr', 'dir', 'divmod',
-        'enumerate', 'eval', 'exec', 'filter', 'format', 'getattr', 'globals',
-        'hasattr', 'hash', 'help', 'hex', 'id', 'isinstance', 'issubclass',
-        'iter', 'locals', 'map', 'max', 'memoryview', 'min', 'next', 'oct',
-        'ord', 'pow', 'property', 'repr', 'reversed', 'round', 'setattr',
-        'slice', 'sorted', 'staticmethod', 'sum', 'super', 'vars', 'zip',
-        '__import__', 'breakpoint',
-    }
-    BUILTINS = set(dir(__builtins__))
+    # Use reserved names from constants module
+    RESERVED = ReservedNames.CORE_RESERVED | ReservedNames.BUILTINS
+    BUILTINS = set(dir(__builtins__) if isinstance(__builtins__, dict) else dir(__builtins__))
 
-    def __init__(self, name_generator: NameGenerator, exclude_names: Optional[Set[str]] = None):
+    def __init__(self, name_generator: 'NameGenerator', exclude_names: Optional[Set[str]] = None):
         self.name_gen = name_generator
         self.exclude = self.RESERVED | self.BUILTINS | (exclude_names or set())
         self._in_class = False
@@ -252,152 +239,28 @@ class NameObfuscator(ast.NodeTransformer):
     - Handles self.attr and cls.attr patterns
     """
 
-    # Names that should never be obfuscated
-    BUILTINS = set(dir(__builtins__))
-    RESERVED = {
-        # Python keywords and special names
-        'self', 'cls', 'super', '__init__', '__new__', '__del__', '__repr__',
-        '__str__', '__bytes__', '__format__', '__lt__', '__le__', '__eq__',
-        '__ne__', '__gt__', '__ge__', '__hash__', '__bool__', '__getattr__',
-        '__getattribute__', '__setattr__', '__delattr__', '__dir__', '__get__',
-        '__set__', '__delete__', '__slots__', '__init_subclass__', '__set_name__',
-        '__instancecheck__', '__subclasscheck__', '__class_getitem__', '__call__',
-        '__len__', '__length_hint__', '__getitem__', '__setitem__', '__delitem__',
-        '__missing__', '__iter__', '__reversed__', '__contains__', '__add__',
-        '__sub__', '__mul__', '__matmul__', '__truediv__', '__floordiv__',
-        '__mod__', '__divmod__', '__pow__', '__lshift__', '__rshift__', '__and__',
-        '__xor__', '__or__', '__neg__', '__pos__', '__abs__', '__invert__',
-        '__complex__', '__int__', '__float__', '__index__', '__round__',
-        '__trunc__', '__floor__', '__ceil__', '__enter__', '__exit__',
-        '__await__', '__aiter__', '__anext__', '__aenter__', '__aexit__',
-        '__name__', '__doc__', '__qualname__', '__module__', '__defaults__',
-        '__code__', '__globals__', '__dict__', '__closure__', '__annotations__',
-        '__kwdefaults__', '__builtins__', '__file__', '__cached__', '__loader__',
-        '__package__', '__spec__', '__path__', '__all__', '__version__',
-        'True', 'False', 'None', 'Exception', 'BaseException',
-        # Built-in functions that must be preserved
-        'print', 'range', 'len', 'str', 'int', 'float', 'bool', 'list', 'dict',
-        'tuple', 'set', 'frozenset', 'bytes', 'bytearray', 'type', 'object',
-        'open', 'input', 'abs', 'all', 'any', 'ascii', 'bin', 'callable',
-        'chr', 'classmethod', 'compile', 'complex', 'delattr', 'dir', 'divmod',
-        'enumerate', 'eval', 'exec', 'filter', 'format', 'getattr', 'globals',
-        'hasattr', 'hash', 'help', 'hex', 'id', 'isinstance', 'issubclass',
-        'iter', 'locals', 'map', 'max', 'memoryview', 'min', 'next', 'oct',
-        'ord', 'pow', 'property', 'repr', 'reversed', 'round', 'setattr',
-        'slice', 'sorted', 'staticmethod', 'sum', 'super', 'vars', 'zip',
-        '__import__', 'breakpoint',
-        # Common module names
-        'os', 'sys', 'typing', 'pathlib', 'json', 'logging', 're',
-        'collections', 'functools', 'itertools', 'datetime', 'time',
-        'threading', 'multiprocessing', 'subprocess', 'asyncio',
-        # pytest and common test names
-        'pytest', 'unittest', 'test', 'setup', 'teardown',
-    }
+    # Use reserved names from constants module
+    BUILTINS = set(dir(__builtins__) if isinstance(__builtins__, dict) else dir(__builtins__))
+    RESERVED = ReservedNames.get_all_reserved()
 
-    # Framework-specific names that should be preserved
+    # Framework presets from constants module
     FRAMEWORK_PRESETS = {
-        'pyside6': {
-            # PySide6/Qt signal-slot system
-            'Signal', 'Slot', 'Property', 'QObject', 'QWidget', 'QMainWindow',
-            'QApplication', 'QDialog', 'QThread', 'QTimer', 'QEvent',
-            'emit', 'connect', 'disconnect', 'sender', 'receivers',
-            'blockSignals', 'signalsBlocked', 'moveToThread', 'thread',
-            # Common Qt methods that must be preserved
-            'show', 'hide', 'close', 'exec', 'exec_', 'accept', 'reject',
-            'setWindowTitle', 'setGeometry', 'resize', 'move', 'raise_',
-            'lower', 'setParent', 'parent', 'children', 'findChild', 'findChildren',
-            'setLayout', 'layout', 'update', 'repaint', 'setStyleSheet',
-            'setEnabled', 'setVisible', 'setHidden', 'setFocus', 'hasFocus',
-            'event', 'eventFilter', 'installEventFilter', 'removeEventFilter',
-            'paintEvent', 'resizeEvent', 'closeEvent', 'showEvent', 'hideEvent',
-            'keyPressEvent', 'keyReleaseEvent', 'mousePressEvent', 'mouseReleaseEvent',
-            'mouseMoveEvent', 'mouseDoubleClickEvent', 'wheelEvent', 'enterEvent',
-            'leaveEvent', 'focusInEvent', 'focusOutEvent', 'dragEnterEvent',
-            'dragMoveEvent', 'dragLeaveEvent', 'dropEvent', 'timerEvent',
-            # QML integration
-            'setContextProperty', 'rootContext', 'rootObject', 'load', 'setSource',
-            # Property system
-            'property', 'setProperty', 'dynamicPropertyNames',
-        },
-        'pyqt6': {
-            # Same as PySide6 mostly
-            'pyqtSignal', 'pyqtSlot', 'pyqtProperty', 'QObject', 'QWidget',
-            'QMainWindow', 'QApplication', 'QDialog', 'QThread', 'QTimer',
-            'emit', 'connect', 'disconnect', 'sender', 'receivers',
-            'show', 'hide', 'close', 'exec', 'exec_', 'accept', 'reject',
-            'setWindowTitle', 'setGeometry', 'resize', 'move',
-            'setLayout', 'layout', 'update', 'repaint', 'setStyleSheet',
-            'paintEvent', 'resizeEvent', 'closeEvent', 'showEvent', 'hideEvent',
-            'keyPressEvent', 'keyReleaseEvent', 'mousePressEvent', 'mouseReleaseEvent',
-        },
-        'flask': {
-            # Flask framework
-            'Flask', 'Blueprint', 'request', 'Response', 'make_response',
-            'redirect', 'url_for', 'render_template', 'jsonify', 'abort',
-            'session', 'g', 'current_app', 'flash', 'get_flashed_messages',
-            'route', 'before_request', 'after_request', 'teardown_request',
-            'before_first_request', 'errorhandler', 'context_processor',
-            'app_context', 'request_context', 'test_client', 'test_request_context',
-            # Flask-SQLAlchemy
-            'db', 'Model', 'Column', 'Integer', 'String', 'Text', 'Boolean',
-            'DateTime', 'ForeignKey', 'relationship', 'backref',
-        },
-        'django': {
-            # Django framework
-            'models', 'Model', 'CharField', 'TextField', 'IntegerField',
-            'BooleanField', 'DateTimeField', 'ForeignKey', 'ManyToManyField',
-            'OneToOneField', 'Manager', 'QuerySet', 'Meta', 'objects',
-            'get', 'filter', 'exclude', 'create', 'update', 'delete', 'save',
-            'HttpResponse', 'HttpRequest', 'JsonResponse', 'render', 'redirect',
-            'get_object_or_404', 'get_list_or_404', 'reverse', 'reverse_lazy',
-            'View', 'TemplateView', 'ListView', 'DetailView', 'CreateView',
-            'UpdateView', 'DeleteView', 'FormView', 'RedirectView',
-            'get_queryset', 'get_context_data', 'get_object', 'form_valid',
-            'path', 'include', 'urlpatterns', 'admin', 'site',
-        },
-        'fastapi': {
-            # FastAPI framework
-            'FastAPI', 'APIRouter', 'Depends', 'HTTPException', 'Request',
-            'Response', 'Body', 'Query', 'Path', 'Header', 'Cookie', 'Form',
-            'File', 'UploadFile', 'BackgroundTasks', 'WebSocket',
-            'get', 'post', 'put', 'delete', 'patch', 'options', 'head',
-            'status_code', 'response_model', 'dependencies', 'tags',
-            'startup', 'shutdown', 'on_event', 'middleware',
-            # Pydantic
-            'BaseModel', 'Field', 'validator', 'root_validator', 'Config',
-        },
-        'asyncio': {
-            # Asyncio patterns
-            'async', 'await', 'asyncio', 'coroutine', 'Task', 'Future',
-            'gather', 'wait', 'wait_for', 'create_task', 'ensure_future',
-            'run', 'sleep', 'Event', 'Lock', 'Semaphore', 'Queue',
-            'StreamReader', 'StreamWriter', 'start_server', 'open_connection',
-        },
-        'click': {
-            # Click CLI framework
-            'click', 'command', 'group', 'option', 'argument', 'pass_context',
-            'Context', 'echo', 'secho', 'prompt', 'confirm', 'Choice',
-        },
-        'sqlalchemy': {
-            # SQLAlchemy ORM
-            'Base', 'Session', 'engine', 'create_engine', 'sessionmaker',
-            'Column', 'Integer', 'String', 'Text', 'Boolean', 'DateTime',
-            'ForeignKey', 'relationship', 'backref', 'query', 'add', 'commit',
-            'rollback', 'flush', 'expire', 'refresh', 'delete', 'merge',
-        },
+        'pyside6': FrameworkPresets.PYSIDE6,
+        'pyqt6': FrameworkPresets.PYQT6,
+        'flask': FrameworkPresets.FLASK,
+        'django': FrameworkPresets.DJANGO,
+        'fastapi': FrameworkPresets.FASTAPI,
+        'asyncio': FrameworkPresets.ASYNCIO,
+        'click': FrameworkPresets.CLICK,
+        'sqlalchemy': FrameworkPresets.SQLALCHEMY,
     }
 
     @classmethod
     def get_framework_excludes(cls, frameworks: List[str]) -> Set[str]:
         """Get all names to exclude for specified frameworks."""
-        excludes: Set[str] = set()
-        for framework in frameworks:
-            framework_lower = framework.lower()
-            if framework_lower in cls.FRAMEWORK_PRESETS:
-                excludes.update(cls.FRAMEWORK_PRESETS[framework_lower])
-        return excludes
+        return FrameworkPresets.get_framework_excludes(frameworks)
 
-    def __init__(self, name_generator: NameGenerator, exclude_names: Optional[Set[str]] = None,
+    def __init__(self, name_generator: 'NameGenerator', exclude_names: Optional[Set[str]] = None,
                  rename_methods: bool = True, rename_attributes: bool = True):
         self.name_gen = name_generator
         self.exclude = self.RESERVED | self.BUILTINS | (exclude_names or set())
@@ -975,7 +838,7 @@ class Obfuscator:
         """
         input_dir = Path(input_dir)
         output_dir = Path(output_dir)
-        exclude_patterns = exclude_patterns or ['__pycache__', '*.pyc', 'test_*', '*_test.py']
+        exclude_patterns = exclude_patterns or DEFAULT_EXCLUDE_PATTERNS
 
         results: Dict[str, str] = {}
         pattern = '**/*.py' if recursive else '*.py'

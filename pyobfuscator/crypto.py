@@ -16,6 +16,8 @@ import sys
 import uuid
 from typing import List
 
+from .constants import CryptoConstants
+
 # Try to use cryptography library for AES
 try:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -32,10 +34,11 @@ class CryptoEngine:
     Falls back to stream cipher with HMAC if cryptography not available.
     """
 
-    SALT_SIZE = 16
-    NONCE_SIZE = 12
-    KEY_SIZE = 32
-    ITERATIONS = 100000
+    # Use constants from the constants module
+    SALT_SIZE = CryptoConstants.SALT_SIZE
+    NONCE_SIZE = CryptoConstants.NONCE_SIZE
+    KEY_SIZE = CryptoConstants.KEY_SIZE
+    ITERATIONS = CryptoConstants.PBKDF2_ITERATIONS
 
     def __init__(self, key: bytes):
         self.master_key = key

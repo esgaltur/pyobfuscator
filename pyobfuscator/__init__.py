@@ -36,6 +36,55 @@ from .transformers import (
     DistributedTimingChecker,
 )
 
+# New modules for improved architecture
+from .constants import (
+    RuntimeConstants,
+    CryptoConstants,
+    ObfuscatorConstants,
+    ReservedNames,
+    FrameworkPresets,
+)
+from .protocols import (
+    Transformer,
+    ASTTransformer,
+    Encryptor,
+    NameMappingProvider,
+    StringObfuscationStrategy,
+    NameGeneratorStrategy,
+    CodeProtector,
+    ConfigBuilder,
+)
+from .exceptions import (
+    PyObfuscatorError,
+    SourceCodeError,
+    EmptySourceError,
+    InvalidSyntaxError,
+    ObfuscationError,
+    TransformationError,
+    CryptoError,
+    EncryptionError,
+    DecryptionError,
+    ProtectionError,
+    ConfigError,
+    InvalidConfigError,
+)
+from .config import (
+    ObfuscatorConfig,
+    ObfuscatorBuilder,
+    ConfigPresets,
+    get_preset,
+)
+
+# Core module with Strategy and Factory patterns
+from .core import (
+    NameGeneratorFactory,
+    XorStrategy,
+    HexStrategy,
+    Base64Strategy,
+    StringObfuscationFactory,
+)
+from .core.transformers import StringObfuscator as NewStringObfuscator
+
 __version__ = "1.0.2"
 
 # Available framework presets
@@ -69,4 +118,44 @@ __all__ = [
     "ControlFlowObfuscator",
     "PolymorphicAntiDebugGenerator",
     "DistributedTimingChecker",
+    # Constants
+    "RuntimeConstants",
+    "CryptoConstants",
+    "ObfuscatorConstants",
+    "ReservedNames",
+    "FrameworkPresets",
+    # Protocols
+    "Transformer",
+    "ASTTransformer",
+    "Encryptor",
+    "NameMappingProvider",
+    "StringObfuscationStrategy",
+    "NameGeneratorStrategy",
+    "CodeProtector",
+    "ConfigBuilder",
+    # Exceptions
+    "PyObfuscatorError",
+    "SourceCodeError",
+    "EmptySourceError",
+    "InvalidSyntaxError",
+    "ObfuscationError",
+    "TransformationError",
+    "CryptoError",
+    "EncryptionError",
+    "DecryptionError",
+    "ProtectionError",
+    "ConfigError",
+    "InvalidConfigError",
+    # Configuration (Builder pattern)
+    "ObfuscatorConfig",
+    "ObfuscatorBuilder",
+    "ConfigPresets",
+    "get_preset",
+    # Core module (Strategy & Factory patterns)
+    "NameGeneratorFactory",
+    "XorStrategy",
+    "HexStrategy",
+    "Base64Strategy",
+    "StringObfuscationFactory",
+    "NewStringObfuscator",
 ]

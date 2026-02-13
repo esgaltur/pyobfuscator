@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List
 
 from .crypto import CryptoEngine, get_machine_id
+from .constants import RuntimeConstants
 
 
 class RuntimeProtector:
@@ -56,9 +57,10 @@ class RuntimeProtector:
     - Anti-memory dump protection
     """
 
-    MAGIC = b'PYO00004'  # Magic header (v4 = advanced protection)
-    VERSION = b'\x00\x04'
-    DEFAULT_FILENAME = '<protected>'  # Default filename for protected code
+    # Use constants from the constants module
+    MAGIC = RuntimeConstants.MAGIC
+    VERSION = RuntimeConstants.VERSION
+    DEFAULT_FILENAME = RuntimeConstants.DEFAULT_FILENAME
 
     def __init__(
         self,
