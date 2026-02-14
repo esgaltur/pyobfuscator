@@ -32,6 +32,10 @@ from .transformers import (
     generate_polymorphic_anti_debug,
     generate_distributed_timing_checks,
     ControlFlowObfuscator,
+    ControlFlowFlattener,
+    NumberObfuscator,
+    BuiltinObfuscator,
+    IntegrityTransformer,
     PolymorphicAntiDebugGenerator,
     DistributedTimingChecker,
 )
@@ -116,6 +120,10 @@ __all__ = [
     "generate_polymorphic_anti_debug",
     "generate_distributed_timing_checks",
     "ControlFlowObfuscator",
+    "ControlFlowFlattener",
+    "NumberObfuscator",
+    "BuiltinObfuscator",
+    "IntegrityTransformer",
     "PolymorphicAntiDebugGenerator",
     "DistributedTimingChecker",
     # Constants

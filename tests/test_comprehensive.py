@@ -451,7 +451,7 @@ class TestObfuscatorCompression:
 
     def test_compression_enabled(self):
         """Test compression creates exec wrapper."""
-        obf = Obfuscator(compress_code=True)
+        obf = Obfuscator(compress_code=True, encrypt_code=False)
         source = '''
 def func():
     return 42
@@ -462,7 +462,7 @@ def func():
 
     def test_compressed_code_executes(self):
         """Test that compressed code executes correctly."""
-        obf = Obfuscator(compress_code=True, exclude_names={"result"})
+        obf = Obfuscator(compress_code=True, encrypt_code=False, exclude_names={"result"})
         source = "result = 1 + 2"
         result = obf.obfuscate_source(source)
         namespace = {}

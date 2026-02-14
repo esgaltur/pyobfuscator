@@ -21,6 +21,15 @@ from typing import Dict, Set, Optional, List, Tuple
 from pathlib import Path
 
 from .constants import ReservedNames, FrameworkPresets, DEFAULT_EXCLUDE_PATTERNS
+from .transformers import (
+    ControlFlowObfuscator,
+    NumberObfuscator,
+    BuiltinObfuscator,
+    CommentRemover,
+    ControlFlowFlattener,
+    IntegrityTransformer
+)
+from .runtime_protection import RuntimeProtector
 
 
 class NameGenerator:
@@ -619,6 +628,10 @@ class Obfuscator:
 
     def __init__(
         self,
+        # Core protection - encryption (recommended)
+        encrypt_code: bool = True,
+        anti_debug: bool = True,
+        # Name obfuscation options
         rename_variables: bool = True,
         rename_functions: bool = True,
         rename_classes: bool = True,
@@ -634,19 +647,34 @@ class Obfuscator:
         name_generator: Optional[NameGenerator] = None,
         frameworks: Optional[List[str]] = None,
         preserve_public_api: bool = False,
-        entry_points: Optional[List[str]] = None
+        entry_points: Optional[List[str]] = None,
+        control_flow: bool = False,
+        number_obfuscation: bool = False,
+        builtin_obfuscation: bool = False,
+        control_flow_flatten: bool = False,
+        integrity_check: bool = False,
+        obfuscation_intensity: int = 1,
+        # Encryption/Protection options
+        license_info: str = "Protected by PyObfuscator",
+        encryption_key: Optional[bytes] = None,
+        expiration_date: Optional['datetime'] = None,
+        allowed_machines: Optional[List[str]] = None
     ):
         """
         Initialize the obfuscator.
 
-        Args:
+        CORE PROTECTION (Recommended - enabled by default):
+            encrypt_code: Encrypt the code with AES-256-GCM (hides real code)
+            anti_debug: Enable anti-debugging protection
+
+        Name Obfuscation (supplementary):
             rename_variables: Rename local variables
             rename_functions: Rename function definitions
             rename_classes: Rename class definitions
             rename_methods: Rename method definitions (inside classes)
             rename_attributes: Rename class attributes and self.x patterns
             obfuscate_strings: Apply string obfuscation
-            compress_code: Compress output with zlib
+            compress_code: Compress output with zlib (only if encrypt_code=False)
             remove_comments: Remove comments (automatic via AST)
             remove_docstrings: Remove docstrings
             name_style: Name generation style ("random", "hex", "hash")
@@ -655,9 +683,32 @@ class Obfuscator:
             name_generator: Shared NameGenerator for cross-file obfuscation
             frameworks: List of framework presets to use (e.g., ['pyside6', 'sqlalchemy'])
                        Available: pyside6, pyqt6, flask, django, fastapi, asyncio, click, sqlalchemy
-            preserve_public_api: If True, don't rename names in __all__ or public names (no underscore prefix)
-            entry_points: List of function/class names that should never be renamed (e.g., ['main', 'App'])
+            preserve_public_api: If True, don't rename names in __all__ or public names
+            entry_points: List of function/class names that should never be renamed
+
+        Advanced Obfuscation:
+            control_flow: Enable control flow obfuscation (opaque predicates, dead code)
+            number_obfuscation: Enable numeric literal obfuscation
+            builtin_obfuscation: Enable builtin function call obfuscation
+            control_flow_flatten: Enable control flow flattening (CFF)
+            integrity_check: Enable integrity verification checks in functions
+            obfuscation_intensity: Intensity of advanced obfuscation (1-3)
+
+        Encryption/Protection Options:
+            license_info: License/author information embedded in protected files
+            encryption_key: Custom encryption key (32 bytes), or auto-generated
+            expiration_date: Optional expiration date for the protected code
+            allowed_machines: List of allowed machine IDs for hardware binding
         """
+        # Core protection settings
+        self.encrypt_code = encrypt_code
+        self.anti_debug = anti_debug
+        self.license_info = license_info
+        self.encryption_key = encryption_key
+        self.expiration_date = expiration_date
+        self.allowed_machines = allowed_machines or []
+
+        # Name obfuscation settings
         self.rename_variables = rename_variables
         self.rename_functions = rename_functions
         self.rename_classes = rename_classes
@@ -670,6 +721,23 @@ class Obfuscator:
         self.name_style = name_style
         self.string_method = string_method
         self.preserve_public_api = preserve_public_api
+        self.control_flow = control_flow
+        self.number_obfuscation = number_obfuscation
+        self.builtin_obfuscation = builtin_obfuscation
+        self.control_flow_flatten = control_flow_flatten
+        self.integrity_check = integrity_check
+        self.obfuscation_intensity = obfuscation_intensity
+
+        # Create RuntimeProtector if encryption is enabled
+        self._runtime_protector: Optional[RuntimeProtector] = None
+        if self.encrypt_code:
+            self._runtime_protector = RuntimeProtector(
+                license_info=license_info,
+                encryption_key=encryption_key,
+                expiration_date=expiration_date,
+                allowed_machines=allowed_machines,
+                anti_debug=anti_debug
+            )
 
         # Build exclude names from multiple sources
         combined_excludes: Set[str] = set(exclude_names or set())
@@ -728,18 +796,72 @@ class Obfuscator:
             tree = string_obfuscator.visit(tree)
             ast.fix_missing_locations(tree)
 
+        # Apply advanced transformations
+        if self.control_flow:
+            cf_obfuscator = ControlFlowObfuscator(intensity=self.obfuscation_intensity)
+            tree = cf_obfuscator.visit(tree)
+            ast.fix_missing_locations(tree)
+
+        if self.control_flow_flatten:
+            cff_obfuscator = ControlFlowFlattener(intensity=self.obfuscation_intensity)
+            tree = cff_obfuscator.visit(tree)
+            ast.fix_missing_locations(tree)
+
+        if self.number_obfuscation:
+            num_obfuscator = NumberObfuscator(intensity=self.obfuscation_intensity)
+            tree = num_obfuscator.visit(tree)
+            ast.fix_missing_locations(tree)
+
+        if self.builtin_obfuscation:
+            builtin_obfuscator = BuiltinObfuscator()
+            tree = builtin_obfuscator.visit(tree)
+            ast.fix_missing_locations(tree)
+
+        if self.integrity_check:
+            integrity_obfuscator = IntegrityTransformer(intensity=self.obfuscation_intensity)
+            tree = integrity_obfuscator.visit(tree)
+            ast.fix_missing_locations(tree)
+
         # Convert AST back to source
         try:
             obfuscated = ast.unparse(tree)
         except Exception as e:
             raise ValueError(f"Failed to generate obfuscated code: {e}")
 
-        # Compress if requested
-        if self.compress_code:
+        # Compress if requested (only when not encrypting)
+        if self.compress_code and not self.encrypt_code:
             encoded = CodeCompressor.compress_code(obfuscated)
             obfuscated = CodeCompressor.create_loader(encoded)
 
         return obfuscated
+
+    def protect_source(self, source: str, filename: str = "<protected>") -> Tuple[str, str]:
+        """
+        Apply full protection: obfuscation + encryption.
+
+        This is the recommended method for maximum protection.
+        The code is first obfuscated (names, strings, control flow) then
+        encrypted with AES-256-GCM.
+
+        Args:
+            source: Python source code
+            filename: Filename for error messages
+
+        Returns:
+            Tuple of (protected_code, runtime_module_code)
+            - protected_code: The encrypted loader code
+            - runtime_module_code: The runtime module that must be deployed with your code
+        """
+        if not self._runtime_protector:
+            raise ValueError("Encryption is not enabled. Set encrypt_code=True")
+
+        # First apply obfuscation
+        obfuscated = self.obfuscate_source(source)
+
+        # Then encrypt with runtime protection
+        protected, runtime = self._runtime_protector.protect_source(obfuscated, filename)
+
+        return protected, runtime
 
     def obfuscate_file(self, input_path: Path, output_path: Optional[Path] = None) -> str:
         """
@@ -748,12 +870,15 @@ class Obfuscator:
         When obfuscating multiple files, use the same Obfuscator instance
         to ensure consistent name mapping across files.
 
+        If encrypt_code=True (default), this will produce encrypted output
+        that requires the runtime module to execute.
+
         Args:
             input_path: Path to input file
             output_path: Path to output file (optional)
 
         Returns:
-            Obfuscated source code
+            Obfuscated/protected source code
         """
         input_path = Path(input_path)
 
@@ -822,7 +947,9 @@ class Obfuscator:
         input_dir: Path,
         output_dir: Path,
         recursive: bool = True,
-        exclude_patterns: Optional[List[str]] = None
+        exclude_patterns: Optional[List[str]] = None,
+        parallel: bool = False,
+        max_workers: Optional[int] = None
     ) -> Dict[str, str]:
         """
         Obfuscate all Python files in a directory with cross-file consistency.
@@ -835,6 +962,17 @@ class Obfuscator:
 
         This ensures that imports between files continue to work correctly,
         treating the entire directory as ONE unified application.
+
+        Args:
+            input_dir: Input directory containing Python files
+            output_dir: Output directory for obfuscated files
+            recursive: Process subdirectories recursively
+            exclude_patterns: File patterns to exclude
+            parallel: Enable parallel processing for Phase 2
+            max_workers: Maximum number of worker processes (None = CPU count)
+
+        Returns:
+            Dict mapping relative file paths to result status
         """
         input_dir = Path(input_dir)
         output_dir = Path(output_dir)
@@ -846,8 +984,9 @@ class Obfuscator:
         # Collect all files to process
         py_files = self._collect_python_files(input_dir, pattern, exclude_patterns)
 
-        # PHASE 1: Collect all definitions from all files
+        # PHASE 1: Collect all definitions from all files (SEQUENTIAL)
         # This builds the complete name mapping before any transformations
+        # Must be sequential to ensure consistent name mapping
         for py_file, relative_path in py_files:
             try:
                 with open(py_file, 'r', encoding='utf-8') as f:
@@ -857,16 +996,162 @@ class Obfuscator:
                 pass  # Skip files that can't be read; will be handled in Phase 2
 
         # PHASE 2: Transform all files using the complete mapping
+        if parallel and len(py_files) > 1:
+            results = self._obfuscate_files_parallel(
+                py_files, output_dir, max_workers
+            )
+        else:
+            # Sequential processing
+            for py_file, relative_path in py_files:
+                output_path = output_dir / relative_path
+                try:
+                    self.obfuscate_file(py_file, output_path)
+                    results[str(relative_path)] = "success"
+                except Exception as e:
+                    results[str(relative_path)] = f"error: {e}"
+
+        return results
+
+    def protect_directory(
+        self,
+        input_dir: Path,
+        output_dir: Path,
+        recursive: bool = True,
+        exclude_patterns: Optional[List[str]] = None
+    ) -> Tuple[Dict[str, str], str]:
+        """
+        Protect all Python files in a directory with encryption.
+
+        This is the recommended method for maximum protection of multi-file projects.
+        All files are first obfuscated, then encrypted with AES-256-GCM.
+
+        Args:
+            input_dir: Input directory containing Python files
+            output_dir: Output directory for protected files
+            recursive: Process subdirectories recursively
+            exclude_patterns: File patterns to exclude
+
+        Returns:
+            Tuple of (results_dict, runtime_module_code)
+            - results_dict: Dict mapping relative file paths to result status
+            - runtime_module_code: The runtime module that must be deployed
+        """
+        if not self._runtime_protector:
+            raise ValueError("Encryption is not enabled. Set encrypt_code=True")
+
+        input_dir = Path(input_dir)
+        output_dir = Path(output_dir)
+        exclude_patterns = exclude_patterns or DEFAULT_EXCLUDE_PATTERNS
+
+        results: Dict[str, str] = {}
+        pattern = '**/*.py' if recursive else '*.py'
+        runtime_code = None
+
+        # Collect all files to process
+        py_files = self._collect_python_files(input_dir, pattern, exclude_patterns)
+
+        # PHASE 1: Collect all definitions from all files
+        for py_file, relative_path in py_files:
+            try:
+                with open(py_file, 'r', encoding='utf-8') as f:
+                    source = f.read()
+                self._collect_definitions_from_source(source)
+            except Exception:
+                pass
+
+        # PHASE 2: Transform and encrypt all files
         for py_file, relative_path in py_files:
             output_path = output_dir / relative_path
-
             try:
-                self.obfuscate_file(py_file, output_path)
+                with open(py_file, 'r', encoding='utf-8') as f:
+                    source = f.read()
+
+                # Apply obfuscation first
+                obfuscated = self.obfuscate_source(source)
+
+                # Then encrypt with runtime protection
+                protected, runtime = self._runtime_protector.protect_source(
+                    obfuscated, str(relative_path)
+                )
+
+                # Save runtime code (same for all files)
+                if runtime_code is None:
+                    runtime_code = runtime
+
+                # Write protected file
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    f.write(protected)
+
                 results[str(relative_path)] = "success"
             except Exception as e:
                 results[str(relative_path)] = f"error: {e}"
 
+        # Write runtime module
+        if runtime_code:
+            runtime_name = f"pyobfuscator_runtime_{self._runtime_protector.runtime_id}"
+            runtime_path = output_dir / f"{runtime_name}.py"
+            with open(runtime_path, 'w', encoding='utf-8') as f:
+                f.write(runtime_code)
+
+        return results, runtime_code or ""
+
+    def _obfuscate_files_parallel(
+        self,
+        py_files: List[Tuple[Path, Path]],
+        output_dir: Path,
+        max_workers: Optional[int] = None
+    ) -> Dict[str, str]:
+        """
+        Process files in parallel using ProcessPoolExecutor.
+
+        Note: This creates a copy of the name mapping for each worker to ensure
+        thread safety. All workers use the same pre-computed name mapping from Phase 1.
+        """
+        import concurrent.futures
+        import os
+
+        results: Dict[str, str] = {}
+
+
+        # Default to number of CPUs
+        if max_workers is None:
+            max_workers = os.cpu_count() or 4
+
+        # Limit workers to number of files
+        max_workers = min(max_workers, len(py_files))
+
+        # Use ThreadPoolExecutor instead of ProcessPoolExecutor to share state
+        # This is simpler and avoids serialization issues with the name generator
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_file = {}
+            for py_file, relative_path in py_files:
+                output_path = output_dir / relative_path
+                future = executor.submit(
+                    self._obfuscate_single_file_worker,
+                    py_file,
+                    output_path
+                )
+                future_to_file[future] = relative_path
+
+            for future in concurrent.futures.as_completed(future_to_file):
+                relative_path = future_to_file[future]
+                try:
+                    result = future.result()
+                    results[str(relative_path)] = result
+                except Exception as e:
+                    results[str(relative_path)] = f"error: {e}"
+
         return results
+
+    def _obfuscate_single_file_worker(self, input_path: Path, output_path: Path) -> str:
+        """Worker function for parallel file obfuscation."""
+        try:
+            self.obfuscate_file(input_path, output_path)
+            return "success"
+        except Exception as e:
+            return f"error: {e}"
+
 
     def export_name_mapping(self) -> Dict[str, str]:
         """

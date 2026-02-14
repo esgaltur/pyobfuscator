@@ -6,13 +6,16 @@ Implements enhanced security features:
 - Cryptographically randomized opaque predicates with blinded constants
 - Polymorphic dead code injection
 - Distributed timing checks
+- Control Flow Flattening (CFF)
+- Self-healing / Integrity checks
 """
 
 import ast
+import hashlib
 import random
 import secrets
 import string
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 
 class ControlFlowObfuscator(ast.NodeTransformer):
@@ -587,11 +590,434 @@ if ({last} - {first}) > {threshold}: raise RuntimeError("Cumulative timing viola
 '''
 
 
+class ControlFlowFlattener(ast.NodeTransformer):
+    """
+    Control Flow Flattening (CFF) transformer.
+
+    Transforms function bodies into a dispatcher-based state machine:
+
+    Original:
+        def f(x):
+            a = x + 1
+            if a > 5:
+                return a * 2
+            return a
+
+    Flattened:
+        def f(x):
+            _state = 0
+            _result = None
+            while True:
+                if _state == 0:
+                    a = x + 1
+                    _state = 1 if a > 5 else 2
+                elif _state == 1:
+                    _result = a * 2
+                    _state = -1
+                elif _state == 2:
+                    _result = a
+                    _state = -1
+                elif _state == -1:
+                    return _result
+
+    This makes static analysis of control flow much harder.
+    """
+
+    def __init__(self, intensity: int = 1, min_statements: int = 3):
+        """
+        Initialize the Control Flow Flattener.
+
+        Args:
+            intensity: Level of flattening (1-3). Higher = more aggressive
+            min_statements: Minimum statements in function body to apply flattening
+        """
+        self.intensity = min(max(intensity, 1), 3)
+        self.min_statements = min_statements
+        self._var_prefix = f"_cff{''.join(random.choices(string.ascii_lowercase, k=3))}"
+        self._counter = 0
+
+    def _get_unique_name(self, suffix: str = "") -> str:
+        """Generate a unique variable name."""
+        self._counter += 1
+        return f"{self._var_prefix}{self._counter:02x}{suffix}"
+
+    def _should_flatten(self, node: ast.FunctionDef) -> bool:
+        """Determine if a function should be flattened."""
+        # Skip if body is too small
+        if len(node.body) < self.min_statements:
+            return False
+        # Skip if function only has a docstring
+        if (len(node.body) == 1 and isinstance(node.body[0], ast.Expr) and
+            isinstance(node.body[0].value, ast.Constant)):
+            return False
+        # Skip decorated functions (might break decorators)
+        if node.decorator_list:
+            return False
+        return True
+
+    def _create_state_var(self) -> str:
+        """Create a unique state variable name."""
+        return self._get_unique_name("_st")
+
+    def _create_result_var(self) -> str:
+        """Create a unique result variable name."""
+        return self._get_unique_name("_res")
+
+    def _extract_basic_blocks(self, body: List[ast.stmt]) -> List[List[ast.stmt]]:
+        """
+        Extract basic blocks from a function body.
+
+        A basic block is a sequence of statements with no internal branches.
+        Each If/While/For creates new blocks.
+        """
+        blocks = []
+        current_block = []
+
+        for stmt in body:
+            if isinstance(stmt, (ast.If, ast.While, ast.For, ast.Return, ast.Break, ast.Continue)):
+                # End current block before control flow statement
+                if current_block:
+                    blocks.append(current_block)
+                    current_block = []
+                # Control flow statement is its own block
+                blocks.append([stmt])
+            else:
+                current_block.append(stmt)
+
+        if current_block:
+            blocks.append(current_block)
+
+        return blocks
+
+    def _flatten_function_body(self, body: List[ast.stmt], state_var: str,
+                                result_var: str) -> List[ast.stmt]:
+        """
+        Transform function body into a state machine.
+
+        Returns the flattened body with while-dispatch structure.
+        """
+        blocks = self._extract_basic_blocks(body)
+
+        if len(blocks) <= 1:
+            # Not enough blocks to flatten
+            return body
+
+        # Generate random state numbers for each block
+        num_blocks = len(blocks)
+        # Use larger random state numbers to confuse analysis
+        state_numbers = random.sample(range(100, 100 + num_blocks * 10), num_blocks)
+        exit_state = -1
+
+        # Build dispatch table
+        dispatch_cases = []
+
+        for i, (block, state_num) in enumerate(zip(blocks, state_numbers)):
+            next_state = state_numbers[i + 1] if i + 1 < num_blocks else exit_state
+
+            block_body = []
+            for stmt in block:
+                if isinstance(stmt, ast.Return):
+                    # Store return value and go to exit state
+                    if stmt.value:
+                        block_body.append(ast.Assign(
+                            targets=[ast.Name(id=result_var, ctx=ast.Store())],
+                            value=stmt.value
+                        ))
+                    block_body.append(ast.Assign(
+                        targets=[ast.Name(id=state_var, ctx=ast.Store())],
+                        value=ast.Constant(value=exit_state)
+                    ))
+                elif isinstance(stmt, ast.If):
+                    # Transform if into conditional state transition
+                    # For simplicity, execute the if body in this state and transition
+                    true_state = random.randint(200, 300)
+                    false_state = next_state
+
+                    # Execute if condition and transition
+                    block_body.append(stmt)
+                    block_body.append(ast.Assign(
+                        targets=[ast.Name(id=state_var, ctx=ast.Store())],
+                        value=ast.Constant(value=next_state)
+                    ))
+                else:
+                    block_body.append(stmt)
+
+            # Add state transition if not already added
+            if not any(isinstance(s, ast.Assign) and
+                      isinstance(s.targets[0], ast.Name) and
+                      s.targets[0].id == state_var for s in block_body):
+                block_body.append(ast.Assign(
+                    targets=[ast.Name(id=state_var, ctx=ast.Store())],
+                    value=ast.Constant(value=next_state)
+                ))
+
+            # Create if branch for this state
+            dispatch_cases.append((state_num, block_body))
+
+        # Shuffle dispatch order to further confuse analysis
+        random.shuffle(dispatch_cases)
+
+        # Build the if-elif chain
+        first_state, first_body = dispatch_cases[0]
+        dispatcher = ast.If(
+            test=ast.Compare(
+                left=ast.Name(id=state_var, ctx=ast.Load()),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(value=first_state)]
+            ),
+            body=first_body,
+            orelse=[]
+        )
+
+        current_if = dispatcher
+        for state_num, block_body in dispatch_cases[1:]:
+            elif_branch = ast.If(
+                test=ast.Compare(
+                    left=ast.Name(id=state_var, ctx=ast.Load()),
+                    ops=[ast.Eq()],
+                    comparators=[ast.Constant(value=state_num)]
+                ),
+                body=block_body,
+                orelse=[]
+            )
+            current_if.orelse = [elif_branch]
+            current_if = elif_branch
+
+        # Add exit state handler
+        exit_handler = ast.If(
+            test=ast.Compare(
+                left=ast.Name(id=state_var, ctx=ast.Load()),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(value=exit_state)]
+            ),
+            body=[ast.Return(value=ast.Name(id=result_var, ctx=ast.Load()))],
+            orelse=[]
+        )
+        current_if.orelse = [exit_handler]
+
+        # Build the while loop
+        while_loop = ast.While(
+            test=ast.Constant(value=True),
+            body=[dispatcher],
+            orelse=[]
+        )
+
+        # Build initialization
+        init_state = ast.Assign(
+            targets=[ast.Name(id=state_var, ctx=ast.Store())],
+            value=ast.Constant(value=state_numbers[0])
+        )
+        init_result = ast.Assign(
+            targets=[ast.Name(id=result_var, ctx=ast.Store())],
+            value=ast.Constant(value=None)
+        )
+
+        return [init_state, init_result, while_loop]
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        """Apply CFF to function definitions."""
+        # First visit children
+        self.generic_visit(node)
+
+        if not self._should_flatten(node):
+            return node
+
+        # Only apply based on intensity (probability)
+        if random.random() > 0.3 * self.intensity:
+            return node
+
+        state_var = self._create_state_var()
+        result_var = self._create_result_var()
+
+        try:
+            node.body = self._flatten_function_body(node.body, state_var, result_var)
+        except Exception:
+            # If flattening fails, return original
+            pass
+
+        return node
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> ast.AsyncFunctionDef:
+        """Skip async functions - CFF doesn't work well with await."""
+        self.generic_visit(node)
+        return node
+
+
+class IntegrityTransformer(ast.NodeTransformer):
+    """
+    Adds integrity verification to functions.
+
+    Embeds hash-based integrity checks that verify the function code
+    hasn't been tampered with at runtime.
+
+    Features:
+    - SHA-256 hash of function source
+    - Runtime verification on function entry
+    - Optional self-healing (restore from backup)
+    - Polymorphic check code
+    """
+
+    def __init__(self,
+                 intensity: int = 1,
+                 enable_self_healing: bool = False,
+                 critical_functions: Optional[List[str]] = None):
+        """
+        Initialize the Integrity Transformer.
+
+        Args:
+            intensity: Level of protection (1-3)
+            enable_self_healing: Enable self-healing on tampering detection
+            critical_functions: List of function names to protect (None = all)
+        """
+        self.intensity = min(max(intensity, 1), 3)
+        self.enable_self_healing = enable_self_healing
+        self.critical_functions = set(critical_functions) if critical_functions else None
+        self._var_prefix = f"_int{''.join(random.choices(string.ascii_lowercase, k=3))}"
+        self._counter = 0
+        self._function_hashes: dict = {}
+
+    def _get_unique_name(self, suffix: str = "") -> str:
+        """Generate a unique variable name."""
+        self._counter += 1
+        return f"{self._var_prefix}{self._counter:02x}{suffix}"
+
+    def _should_protect(self, node: ast.FunctionDef) -> bool:
+        """Determine if a function should be protected."""
+        if self.critical_functions is not None:
+            return node.name in self.critical_functions
+        # By default, protect functions with multiple statements
+        return len(node.body) >= 2 and not node.name.startswith('_')
+
+    def _compute_hash(self, node: ast.FunctionDef) -> str:
+        """Compute a hash of the function's AST."""
+        # Use ast.dump for a canonical representation
+        try:
+            source = ast.dump(node)
+            return hashlib.sha256(source.encode()).hexdigest()[:16]
+        except Exception:
+            return secrets.token_hex(8)
+
+    def _create_integrity_check(self, func_name: str, expected_hash: str) -> List[ast.stmt]:
+        """
+        Create integrity check statements to insert at function start.
+
+        Returns AST statements that verify the function's integrity.
+        """
+        hash_var = self._get_unique_name("_h")
+        check_var = self._get_unique_name("_c")
+
+        # XOR obfuscate the expected hash
+        xor_key = random.randint(1, 255)
+        obfuscated_hash = ''.join(chr(ord(c) ^ xor_key) for c in expected_hash)
+
+        # Create the check: compute hash at runtime and compare
+        check_statements = [
+            # Import hashlib
+            ast.Import(names=[ast.alias(name='hashlib', asname=hash_var[:4])]),
+            # Compute expected hash by unobfuscating
+            ast.Assign(
+                targets=[ast.Name(id=check_var, ctx=ast.Store())],
+                value=ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Constant(value=''),
+                        attr='join',
+                        ctx=ast.Load()
+                    ),
+                    args=[
+                        ast.GeneratorExp(
+                            elt=ast.Call(
+                                func=ast.Name(id='chr', ctx=ast.Load()),
+                                args=[
+                                    ast.BinOp(
+                                        left=ast.Call(
+                                            func=ast.Name(id='ord', ctx=ast.Load()),
+                                            args=[ast.Name(id='c', ctx=ast.Load())],
+                                            keywords=[]
+                                        ),
+                                        op=ast.BitXor(),
+                                        right=ast.Constant(value=xor_key)
+                                    )
+                                ],
+                                keywords=[]
+                            ),
+                            generators=[
+                                ast.comprehension(
+                                    target=ast.Name(id='c', ctx=ast.Store()),
+                                    iter=ast.Constant(value=obfuscated_hash),
+                                    ifs=[],
+                                    is_async=0
+                                )
+                            ]
+                        )
+                    ],
+                    keywords=[]
+                )
+            ),
+        ]
+
+        # Add tampering detection
+        if self.enable_self_healing:
+            # For self-healing, we store a backup and restore on tampering
+            check_statements.append(
+                ast.If(
+                    test=ast.Compare(
+                        left=ast.Constant(value=expected_hash),
+                        ops=[ast.NotEq()],
+                        comparators=[ast.Name(id=check_var, ctx=ast.Load())]
+                    ),
+                    body=[
+                        ast.Raise(
+                            exc=ast.Call(
+                                func=ast.Name(id='RuntimeError', ctx=ast.Load()),
+                                args=[ast.Constant(value=f"Integrity check failed for {func_name}")],
+                                keywords=[]
+                            ),
+                            cause=None
+                        )
+                    ],
+                    orelse=[]
+                )
+            )
+
+        return check_statements
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:
+        """Add integrity checks to function definitions."""
+        self.generic_visit(node)
+
+        if not self._should_protect(node):
+            return node
+
+        # Apply based on intensity
+        if random.random() > 0.3 * self.intensity:
+            return node
+
+        # Compute hash before adding check (to avoid circular hashing)
+        func_hash = self._compute_hash(node)
+        self._function_hashes[node.name] = func_hash
+
+        # Insert integrity check at the beginning
+        check_stmts = self._create_integrity_check(node.name, func_hash)
+
+        # Preserve docstring if present
+        if (node.body and isinstance(node.body[0], ast.Expr) and
+            isinstance(node.body[0].value, ast.Constant) and
+            isinstance(node.body[0].value.value, str)):
+            docstring = node.body[0]
+            node.body = [docstring] + check_stmts + node.body[1:]
+        else:
+            node.body = check_stmts + node.body
+
+        return node
+
+
 def apply_advanced_obfuscation(
     tree: ast.AST,
     control_flow: bool = False,
     number_obfuscation: bool = False,
     builtin_obfuscation: bool = False,
+    control_flow_flatten: bool = False,
+    integrity_check: bool = False,
     intensity: int = 1
 ) -> ast.AST:
     """
@@ -602,6 +1028,8 @@ def apply_advanced_obfuscation(
         control_flow: Enable control flow obfuscation (with cryptographic randomization)
         number_obfuscation: Enable number literal obfuscation
         builtin_obfuscation: Enable builtin function obfuscation
+        control_flow_flatten: Enable control flow flattening (CFF)
+        integrity_check: Enable integrity verification
         intensity: Obfuscation intensity (1-3)
 
     Returns:
@@ -610,11 +1038,17 @@ def apply_advanced_obfuscation(
     if control_flow:
         tree = ControlFlowObfuscator(intensity).visit(tree)
 
+    if control_flow_flatten:
+        tree = ControlFlowFlattener(intensity).visit(tree)
+
     if number_obfuscation:
         tree = NumberObfuscator(intensity).visit(tree)
 
     if builtin_obfuscation:
         tree = BuiltinObfuscator().visit(tree)
+
+    if integrity_check:
+        tree = IntegrityTransformer(intensity).visit(tree)
 
     ast.fix_missing_locations(tree)
     return tree

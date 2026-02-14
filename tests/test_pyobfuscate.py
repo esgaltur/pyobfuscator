@@ -63,7 +63,7 @@ def public_api():
 
     def test_compression(self):
         """Test code compression."""
-        obfuscator = Obfuscator(compress_code=True)
+        obfuscator = Obfuscator(compress_code=True, encrypt_code=False)
         source = '''
 def func():
     return 42

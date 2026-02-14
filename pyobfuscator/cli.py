@@ -364,11 +364,102 @@ def _add_obfuscate_arguments(parser: argparse.ArgumentParser) -> None:
         help='Preserve names listed in __all__ and public names (without underscore prefix)'
     )
 
+    # Advanced obfuscation arguments
+    parser.add_argument(
+        '--control-flow',
+        action='store_true',
+        help='Enable control flow obfuscation (opaque predicates, dead code)'
+    )
+
+    parser.add_argument(
+        '--control-flow-flatten',
+        action='store_true',
+        help='Enable control flow flattening (CFF) - transforms functions into state machines'
+    )
+
+    parser.add_argument(
+        '--numbers',
+        action='store_true',
+        help='Enable numeric literal obfuscation'
+    )
+
+    parser.add_argument(
+        '--builtins',
+        action='store_true',
+        help='Enable builtin function call obfuscation'
+    )
+
+    parser.add_argument(
+        '--integrity-check',
+        action='store_true',
+        help='Enable integrity verification checks in functions'
+    )
+
+    parser.add_argument(
+        '--all-advanced',
+        action='store_true',
+        help='Enable all advanced obfuscation features (control-flow, cff, numbers, builtins, integrity)'
+    )
+
+    parser.add_argument(
+        '--intensity',
+        type=int,
+        choices=[1, 2, 3],
+        default=1,
+        help='Intensity level for advanced obfuscation (1-3, default: 1)'
+    )
+
+    parser.add_argument(
+        '--parallel',
+        action='store_true',
+        help='Enable parallel processing for directory obfuscation'
+    )
+
+    parser.add_argument(
+        '--workers',
+        type=int,
+        default=None,
+        help='Number of worker threads for parallel processing (default: CPU count)'
+    )
+
     parser.add_argument(
         '--config',
         type=str,
         default=None,
         help='Path to config file (JSON or TOML). Auto-detects pyobfuscator.json/toml in current directory'
+    )
+
+    # Encryption/Protection options
+    parser.add_argument(
+        '--no-encrypt',
+        action='store_true',
+        help='Disable encryption (only apply name obfuscation). By default, code is encrypted with AES-256-GCM'
+    )
+
+    parser.add_argument(
+        '--no-anti-debug',
+        action='store_true',
+        help='Disable anti-debugging protection'
+    )
+
+    parser.add_argument(
+        '--license-info',
+        type=str,
+        default='Protected by PyObfuscator',
+        help='License/author information embedded in protected files'
+    )
+
+    parser.add_argument(
+        '--expire-days',
+        type=int,
+        default=None,
+        help='Expiration in days from now (optional)'
+    )
+
+    parser.add_argument(
+        '--bind-machine',
+        action='store_true',
+        help='Bind to current machine (hardware lock)'
     )
 
     parser.add_argument(
@@ -381,7 +472,42 @@ def _add_obfuscate_arguments(parser: argparse.ArgumentParser) -> None:
 
 def _create_obfuscator(parsed: argparse.Namespace) -> Obfuscator:
     """Create an Obfuscator instance from parsed arguments."""
+    from datetime import datetime, timedelta
+    from .crypto import get_machine_id
+
+    # Handle --all-advanced flag
+    all_advanced = getattr(parsed, 'all_advanced', False)
+
+    control_flow = getattr(parsed, 'control_flow', False) or all_advanced
+    control_flow_flatten = getattr(parsed, 'control_flow_flatten', False) or all_advanced
+    numbers = getattr(parsed, 'numbers', False) or all_advanced
+    builtins = getattr(parsed, 'builtins', False) or all_advanced
+    integrity_check = getattr(parsed, 'integrity_check', False) or all_advanced
+
+    # Encryption options
+    encrypt_code = not getattr(parsed, 'no_encrypt', False)
+    anti_debug = not getattr(parsed, 'no_anti_debug', False)
+    license_info = getattr(parsed, 'license_info', 'Protected by PyObfuscator')
+
+    # Handle expiration
+    expiration_date = None
+    expire_days = getattr(parsed, 'expire_days', None)
+    if expire_days:
+        expiration_date = datetime.now() + timedelta(days=expire_days)
+
+    # Handle machine binding
+    allowed_machines = None
+    if getattr(parsed, 'bind_machine', False):
+        allowed_machines = [get_machine_id()]
+
     return Obfuscator(
+        # Core protection
+        encrypt_code=encrypt_code,
+        anti_debug=anti_debug,
+        license_info=license_info,
+        expiration_date=expiration_date,
+        allowed_machines=allowed_machines,
+        # Name obfuscation
         rename_variables=not parsed.no_rename_vars,
         rename_functions=not parsed.no_rename_funcs,
         rename_classes=not parsed.no_rename_classes,
@@ -393,7 +519,13 @@ def _create_obfuscator(parsed: argparse.Namespace) -> Obfuscator:
         exclude_names=set(parsed.exclude),
         frameworks=parsed.frameworks if parsed.frameworks else None,
         entry_points=parsed.entry_points if parsed.entry_points else None,
-        preserve_public_api=parsed.preserve_public
+        preserve_public_api=parsed.preserve_public,
+        control_flow=control_flow,
+        number_obfuscation=numbers,
+        builtin_obfuscation=builtins,
+        control_flow_flatten=control_flow_flatten,
+        integrity_check=integrity_check,
+        obfuscation_intensity=getattr(parsed, 'intensity', 1)
     )
 
 
@@ -427,13 +559,40 @@ def _obfuscate_single_file(
         pass
 
     if verbose:
-        print(f"Obfuscating {input_path}...")
+        if obfuscator.encrypt_code:
+            print(f"Protecting (obfuscate + encrypt) {input_path}...")
+        else:
+            print(f"Obfuscating {input_path}...")
 
-    obfuscator.obfuscate_file(input_path, output_path)
+    # Read source
+    with open(input_path, 'r', encoding='utf-8') as f:
+        source = f.read()
 
-    if verbose:
-        print(f"Output written to {output_path}")
-    print("Obfuscation complete!")
+    if obfuscator.encrypt_code:
+        # Apply full protection: obfuscation + encryption
+        protected, runtime = obfuscator.protect_source(source, str(input_path.name))
+
+        # Write protected file
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(protected)
+
+        # Write runtime module in the same directory
+        runtime_name = f"pyobfuscator_runtime_{obfuscator._runtime_protector.runtime_id}"
+        runtime_path = output_path.parent / f"{runtime_name}.py"
+        with open(runtime_path, 'w', encoding='utf-8') as f:
+            f.write(runtime)
+
+        if verbose:
+            print(f"Output written to {output_path}")
+            print(f"Runtime module: {runtime_path}")
+        print("Protection complete! (Code is encrypted with AES-256-GCM)")
+    else:
+        # Just obfuscation
+        obfuscator.obfuscate_file(input_path, output_path)
+        if verbose:
+            print(f"Output written to {output_path}")
+        print("Obfuscation complete!")
+
     return 0
 
 
@@ -450,34 +609,73 @@ def _obfuscate_directory(
     output_path.mkdir(parents=True, exist_ok=True)
 
     if verbose:
-        print(f"Obfuscating directory: {input_path}")
+        if obfuscator.encrypt_code:
+            print(f"Protecting directory (obfuscate + encrypt): {input_path}")
+        else:
+            print(f"Obfuscating directory: {input_path}")
         print(f"Output directory: {output_path}")
         print("")
 
     recursive = getattr(parsed, 'recursive', True) and not getattr(parsed, 'no_recursive', False)
     exclude_patterns = getattr(parsed, 'exclude_patterns', ['__pycache__', '*.pyc', 'test_*', '*_test.py'])
+    parallel = getattr(parsed, 'parallel', False)
+    max_workers = getattr(parsed, 'workers', None)
 
-    results = obfuscator.obfuscate_directory(
-        input_path,
-        output_path,
-        recursive=recursive,
-        exclude_patterns=exclude_patterns
-    )
+    if verbose and parallel:
+        print(f"Parallel processing enabled (workers: {max_workers or 'auto'})")
+        print("")
 
-    success_count = sum(1 for v in results.values() if v == "success")
-    error_count = len(results) - success_count
+    if obfuscator.encrypt_code:
+        # Use protect_directory for full protection
+        results, runtime = obfuscator.protect_directory(
+            input_path,
+            output_path,
+            recursive=recursive,
+            exclude_patterns=exclude_patterns
+        )
 
-    if verbose:
-        print("\nResults:")
-        for file_path, result in sorted(results.items()):
-            status = "[OK]" if result == "success" else "[FAIL]"
-            print(f"  {status} {file_path}")
-            if result != "success":
-                print(f"        Error: {result}")
+        success_count = sum(1 for v in results.values() if v == "success")
+        error_count = len(results) - success_count
 
-    print(f"\nObfuscation complete!")
-    print(f"  - Files processed: {success_count}")
-    print(f"  - Errors: {error_count}")
+        if verbose:
+            print("\nResults:")
+            for file_path, result in sorted(results.items()):
+                status = "[OK]" if result == "success" else "[FAIL]"
+                print(f"  {status} {file_path}")
+                if result != "success":
+                    print(f"        Error: {result}")
+
+        print("\nProtection complete! (Code is encrypted with AES-256-GCM)")
+        print(f"  - Files processed: {success_count}")
+        print(f"  - Errors: {error_count}")
+        print(f"  - Output: {output_path}")
+        print(f"  - Runtime module: pyobfuscator_runtime_{obfuscator._runtime_protector.runtime_id}.py")
+    else:
+        # Just obfuscation
+        results = obfuscator.obfuscate_directory(
+            input_path,
+            output_path,
+            recursive=recursive,
+            exclude_patterns=exclude_patterns,
+            parallel=parallel,
+            max_workers=max_workers
+        )
+
+        success_count = sum(1 for v in results.values() if v == "success")
+        error_count = len(results) - success_count
+
+        if verbose:
+            print("\nResults:")
+            for file_path, result in sorted(results.items()):
+                status = "[OK]" if result == "success" else "[FAIL]"
+                print(f"  {status} {file_path}")
+                if result != "success":
+                    print(f"        Error: {result}")
+
+        print("\nObfuscation complete!")
+        print(f"  - Files processed: {success_count}")
+        print(f"  - Errors: {error_count}")
+        print(f"  - Output: {output_path}")
     print(f"  - Output: {output_path}")
 
     return 1 if error_count > 0 else 0
