@@ -8,22 +8,22 @@ Provides abstract base classes for AST transformers.
 import ast
 from abc import ABC, abstractmethod
 from typing import Optional
+from ..context import TransformationContext
 
 
 class BaseTransformer(ABC, ast.NodeTransformer):
     """
     Abstract base class for AST transformers.
-
-    Provides common functionality for all transformers.
     """
 
     @abstractmethod
-    def transform(self, source: str) -> str:
+    def transform(self, source: str, context: Optional[TransformationContext] = None) -> str:
         """
         Transform Python source code.
 
         Args:
             source: The Python source code to transform.
+            context: Context object containing shared state and configuration.
 
         Returns:
             Transformed Python source code.

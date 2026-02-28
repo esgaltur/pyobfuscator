@@ -122,7 +122,7 @@ class TestObfuscatorBasic:
         assert obf.rename_variables is True
         assert obf.rename_functions is True
         assert obf.rename_classes is True
-        assert obf.string_method == "xor"
+        assert obf.string_method == "polymorphic"
 
     def test_custom_initialization(self):
         """Test custom initialization."""

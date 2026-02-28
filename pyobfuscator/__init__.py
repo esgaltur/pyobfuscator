@@ -2,20 +2,11 @@
 """
 PyObfuscator - A Python code obfuscation library
 
-A lightweight, license-free Python obfuscation tool that provides
-multiple obfuscation techniques to protect your Python source code.
-
-Features:
-- Single file and multi-file (cross-file) obfuscation
-- Method and class attribute renaming
-- Polymorphic anti-debug code generation
-- Distributed timing checks
-- AES-256-GCM encryption with runtime protection
-- Framework presets for modular apps (PySide6, Flask, Django, FastAPI, etc.)
-- Auto-detection and configuration generation for projects
+Advanced, production-grade Python obfuscation tool.
 """
 
-from .obfuscator import Obfuscator, NameGenerator, NameObfuscator
+from .obfuscator import Obfuscator
+from .core.transformers.name_transformer import NameGenerator
 from .runtime_protection import RuntimeProtector, protect
 from .pyd_protection import PydRuntimeProtector
 from .crypto import get_machine_id
@@ -27,20 +18,26 @@ from .analyzer import (
     analyze_project,
     generate_config as generate_project_config,
 )
+
 from .transformers import (
     apply_advanced_obfuscation,
     generate_polymorphic_anti_debug,
     generate_distributed_timing_checks,
+    PolymorphicAntiDebugGenerator,
+    DistributedTimingChecker,
     ControlFlowObfuscator,
     ControlFlowFlattener,
     NumberObfuscator,
     BuiltinObfuscator,
     IntegrityTransformer,
-    PolymorphicAntiDebugGenerator,
-    DistributedTimingChecker,
 )
 
-# New modules for improved architecture
+# Core and Infrastructure
+from .core.registry import TransformerRegistry
+
+from .core.pipeline import TransformationPipeline
+
+# Constants
 from .constants import (
     RuntimeConstants,
     CryptoConstants,
@@ -48,16 +45,8 @@ from .constants import (
     ReservedNames,
     FrameworkPresets,
 )
-from .protocols import (
-    Transformer,
-    ASTTransformer,
-    Encryptor,
-    NameMappingProvider,
-    StringObfuscationStrategy,
-    NameGeneratorStrategy,
-    CodeProtector,
-    ConfigBuilder,
-)
+
+# Exceptions
 from .exceptions import (
     PyObfuscatorError,
     SourceCodeError,
@@ -72,6 +61,8 @@ from .exceptions import (
     ConfigError,
     InvalidConfigError,
 )
+
+# Configuration
 from .config import (
     ObfuscatorConfig,
     ObfuscatorBuilder,
@@ -79,69 +70,35 @@ from .config import (
     get_preset,
 )
 
-# Core module with Strategy and Factory patterns
-from .core import (
-    NameGeneratorFactory,
-    XorStrategy,
-    HexStrategy,
-    Base64Strategy,
-    StringObfuscationFactory,
-)
-from .core.transformers import StringObfuscator as NewStringObfuscator
-
-__version__ = "1.0.2"
-
-# Available framework presets
-FRAMEWORK_PRESETS = list(NameObfuscator.FRAMEWORK_PRESETS.keys())
+__version__ = "2.0.0"
 
 __all__ = [
-    # Core obfuscation
     "Obfuscator",
     "NameGenerator",
-    "NameObfuscator",
-    "FRAMEWORK_PRESETS",
-    # Project analysis
+    "TransformerRegistry",
+    "TransformationPipeline",
     "ProjectAnalyzer",
     "ProjectAnalysis",
     "ModuleInfo",
     "analyze_project",
     "generate_project_config",
-    # Runtime protection
     "RuntimeProtector",
     "PydRuntimeProtector",
     "protect",
     "get_machine_id",
-    # CLI
     "main",
     "load_config",
     "find_config",
-    # Advanced transformers
     "apply_advanced_obfuscation",
     "generate_polymorphic_anti_debug",
     "generate_distributed_timing_checks",
+    "PolymorphicAntiDebugGenerator",
+    "DistributedTimingChecker",
     "ControlFlowObfuscator",
     "ControlFlowFlattener",
     "NumberObfuscator",
     "BuiltinObfuscator",
     "IntegrityTransformer",
-    "PolymorphicAntiDebugGenerator",
-    "DistributedTimingChecker",
-    # Constants
-    "RuntimeConstants",
-    "CryptoConstants",
-    "ObfuscatorConstants",
-    "ReservedNames",
-    "FrameworkPresets",
-    # Protocols
-    "Transformer",
-    "ASTTransformer",
-    "Encryptor",
-    "NameMappingProvider",
-    "StringObfuscationStrategy",
-    "NameGeneratorStrategy",
-    "CodeProtector",
-    "ConfigBuilder",
-    # Exceptions
     "PyObfuscatorError",
     "SourceCodeError",
     "EmptySourceError",
@@ -154,16 +111,13 @@ __all__ = [
     "ProtectionError",
     "ConfigError",
     "InvalidConfigError",
-    # Configuration (Builder pattern)
+    "RuntimeConstants",
+    "CryptoConstants",
+    "ObfuscatorConstants",
+    "ReservedNames",
+    "FrameworkPresets",
     "ObfuscatorConfig",
     "ObfuscatorBuilder",
     "ConfigPresets",
     "get_preset",
-    # Core module (Strategy & Factory patterns)
-    "NameGeneratorFactory",
-    "XorStrategy",
-    "HexStrategy",
-    "Base64Strategy",
-    "StringObfuscationFactory",
-    "NewStringObfuscator",
 ]

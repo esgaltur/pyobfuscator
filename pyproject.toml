@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyobfuscator"
-version = "1.0.2"
+version = "2.0.0"
 description = "A Python code obfuscation library with advanced runtime protection"
 readme = "README.md"
 license = "MIT"

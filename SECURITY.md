@@ -2,55 +2,31 @@
 
 ## Supported Versions
 
+Only the latest stable version of PyObfuscator receives security updates.
+
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.x.x   | :white_check_mark: |
-| < 1.0   | :x:                |
+| 2.0.x   | :white_check_mark: |
+| 1.x     | :x:                |
 
 ## Reporting a Vulnerability
 
-We take security seriously. If you discover a security vulnerability in PyObfuscator, please report it responsibly.
+As an obfuscation and protection tool, we take security extremely seriously. 
 
-### How to Report
+**If you discover a way to bypass the protection (e.g., automated de-obfuscation, key extraction, anti-debug bypass), please report it responsibly.**
 
-1. **Do NOT** open a public GitHub issue for security vulnerabilities
-2. Email the maintainers with:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-   - Any suggested fixes (optional)
+Please **DO NOT** create a public issue. Instead, send a detailed report to:
+`dmitriy@sosnovich.com`
 
-### What to Expect
+### What to include in your report:
+1.  **Type of bypass**: (e.g., Static analysis bypass, Dynamic bypass).
+2.  **Reproduction script**: A small Python script that demonstrates the bypass.
+3.  **Environment details**: OS, Python version, and any tools used (e.g., IDA, Ghidra, custom scripts).
 
-- **Acknowledgment**: Within 48 hours
-- **Initial Assessment**: Within 1 week
-- **Resolution Timeline**: Depends on severity (critical: days, high: 1-2 weeks, medium/low: next release)
+We aim to acknowledge all reports within 48 hours and provide a fix or mitigation within 14 days.
 
-### Scope
+## Kerckhoffs's Principle
 
-Security issues we're interested in:
-- Encryption weaknesses
-- Key/data exposure
-- Protection bypass methods
-- Runtime security issues
-- Dependency vulnerabilities
+We believe in the [Kerckhoffs's Principle](https://en.wikipedia.org/wiki/Kerckhoffs%27s_principle): the security of our protection should not depend on the secrecy of the obfuscator's source code. 
 
-### Out of Scope
-
-- Theoretical attacks requiring physical access
-- Social engineering
-- Issues in dependencies (report to upstream)
-- "Security" of obfuscated code (obfuscation is not encryption)
-
-### Safe Harbor
-
-We will not pursue legal action against security researchers who:
-- Follow responsible disclosure guidelines
-- Make good faith efforts to avoid data destruction
-- Do not exploit vulnerabilities beyond proof of concept
-
-## Security Features
-
-PyObfuscator includes 50+ security features. See [README.md](README.md) for details.
-
-Thank you for helping keep PyObfuscator secure!
+If you find a bypass that works even when the attacker knows how the obfuscator works, that is a high-priority bug for us!

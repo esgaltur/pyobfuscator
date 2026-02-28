@@ -7,8 +7,22 @@ structural subtyping. These protocols enable dependency injection,
 testability, and adherence to the Interface Segregation Principle.
 """
 
-from typing import Protocol, Dict, Optional, runtime_checkable
+from typing import Protocol, Dict, Optional, runtime_checkable, Iterable
 import ast
+from pathlib import Path
+
+
+@runtime_checkable
+class FileSystemProvider(Protocol):
+    """
+    Abstraction for file system operations to enable disk-less testing.
+    """
+    def read_text(self, path: Path) -> str: ...
+    def write_text(self, path: Path, content: str) -> None: ...
+    def exists(self, path: Path) -> bool: ...
+    def is_dir(self, path: Path) -> bool: ...
+    def mkdir(self, path: Path) -> None: ...
+    def glob(self, path: Path, pattern: str) -> Iterable[Path]: ...
 
 
 @runtime_checkable

@@ -1,84 +1,50 @@
 # Contributing to PyObfuscator
 
-Thank you for your interest in contributing to PyObfuscator! This document provides guidelines and information for contributors.
+First off, thank you for considering contributing to PyObfuscator! It's people like you that make PyObfuscator such a great tool for the community.
 
-## Code of Conduct
+## 🚀 Getting Started
 
-Please be respectful and considerate of others. We're all here to make PyObfuscator better.
+1.  **Fork the repository** on GitHub.
+2.  **Clone your fork** locally:
+    ```bash
+    git clone https://github.com/YOUR_USERNAME/pyobfuscator.git
+    cd pyobfuscator
+    ```
+3.  **Set up a virtual environment**:
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
+4.  **Install dependencies**:
+    ```bash
+    pip install -e .[all,dev]
+    ```
+5.  **Install pre-commit hooks**:
+    ```bash
+    pre-commit install
+    ```
 
-## How to Contribute
+## 🛠️ Development Workflow
 
-### Reporting Bugs
+*   **Refactoring / Features**: We follow Hexagonal Architecture. New transformers should be registered in `pyobfuscator/core/registry.py` and implement the `BaseTransformer` interface.
+*   **Testing**: We aim for 100% coverage.
+    *   Run unit tests: `pytest tests/test_pyobfuscate.py`
+    *   Run architectural tests: `pytest tests/test_architecture.py`
+    *   Run property-based tests: `pytest tests/test_properties.py`
+*   **Linting**: Code must pass `black`, `isort`, `flake8`, and `mypy` checks.
 
-1. Check if the bug has already been reported in [Issues](https://github.com/esgaltur/pyobfuscator/issues)
-2. If not, create a new issue with:
-   - Clear title and description
-   - Steps to reproduce
-   - Expected vs actual behavior
-   - Python version and OS
-   - Relevant code snippets
+## 🤝 Pull Request Process
 
-### Suggesting Features
+1.  Create a new branch for your feature or bugfix.
+2.  Ensure tests pass and coverage is maintained.
+3.  Update the documentation if you've added new features or changed APIs.
+4.  Submit a Pull Request against the `main` branch.
+5.  Two maintainers must approve the PR before it is merged.
 
-1. Check existing issues for similar suggestions
-2. Create a new issue with the "enhancement" label
-3. Describe the feature and its use case
-4. Explain why it would be useful
+## 🛡️ Security Contributions
 
-### Pull Requests
+If you find a security vulnerability, **please do not open an issue**. Instead, follow the instructions in our [Security Policy](SECURITY.md).
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests (`python examples/tests.py`)
-5. Commit with clear messages (`git commit -m 'Add amazing feature'`)
-6. Push to your branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+---
 
-## Development Setup
-
-```bash
-# Clone your fork
-git clone https://github.com/YOUR_USERNAME/pyobfuscator.git
-cd pyobfuscator
-
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install in development mode
-pip install -e ".[all]"
-
-# Install development dependencies
-pip install pytest pytest-cov black isort flake8
-
-# Run tests
-python examples/tests.py
-```
-
-## Code Style
-
-- Follow PEP 8 guidelines
-- Use meaningful variable and function names
-- Add docstrings to public functions and classes
-- Keep functions focused and small
-- Write tests for new features
-
-## Testing
-
-- Run `python examples/tests.py` before submitting
-- Add tests for new features
-- Ensure all tests pass on Python 3.10+
-
-## Security
-
-If you discover a security vulnerability, please:
-1. **Do NOT** open a public issue
-2. Email the maintainers directly
-3. Allow time for a fix before public disclosure
-
-## Questions?
-
-Open an issue with the "question" label or start a discussion.
-
-Thank you for contributing! 🎉
+By contributing, you agree that your contributions will be licensed under its [MIT License](LICENSE).
