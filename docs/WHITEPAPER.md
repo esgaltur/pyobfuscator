@@ -1,10 +1,10 @@
 # PyObfuscator: A Multi-Layer Defense Framework for Python Code Protection
 
-**Version 1.0.0**
+**Version 2.0.0**
 
 **Author:** Dmitrij Sosnovic  
 **Email:** dmitriy@sosnovich.com  
-**Date:** January 2026  
+**Date:** March 2026  
 **License:** MIT
 
 ---
@@ -59,7 +59,7 @@ PyObfuscator implements a layered defense architecture:
 │  (Time expiration, machine binding, domain lock, network check)  │
 ├─────────────────────────────────────────────────────────────────┤
 │                  Layer 5: Anti-Analysis Suite                    │
-│    (12+ detection mechanisms, environment fingerprinting)        │
+│    (15+ detection mechanisms, environment fingerprinting)        │
 ├─────────────────────────────────────────────────────────────────┤
 │                  Layer 4: Code Virtualization                    │
 │      (Stack-based VM, randomized opcodes, self-modifying)        │
@@ -294,7 +294,7 @@ def _execute_vm(bytecode):
 
 ### 3.5 Layer 5: Anti-Analysis Suite
 
-#### 3.5.1 Detection Mechanisms (12+ Layers)
+#### 3.5.1 Detection Mechanisms (15+ Layers)
 
 | Layer | Technique | Detection Method |
 |-------|-----------|------------------|
@@ -685,7 +685,7 @@ Attacker recognizes opaque predicate → Still can't predict runtime values
 |---------|--------------|---------|--------|
 | Open Source | ✓ | ✗ | ✓ |
 | Encryption | AES-256-GCM | Proprietary | N/A |
-| Anti-Debug Layers | 12+ | ~6 | 0 |
+| Anti-Debug Layers | 15+ | ~6 | 0 |
 | Code Virtualization | ✓ | ✓ | ✗ |
 | Native Compilation | ✓ (Cython) | ✗ | ✓ |
 | Cost | Free | $56-512/yr | Free |

@@ -50,10 +50,10 @@ def test_obfuscate_directory_in_memory():
     assert "TOP_SECRET_STRING" not in obfuscated_utils
     assert "secret" not in obfuscated_utils # Should be renamed
     
-    # Check that main.py still imports correctly (cross-file consistency)
+    # Check that main.py has renamed identifiers (the imported name is renamed)
     obfuscated_main = vfs.read_text(Path("dist/main.py"))
-    assert "from .utils import" not in obfuscated_main # The identifier should be renamed
-    
+    assert "secret" not in obfuscated_main  # The original function name should be renamed
+
     print("Project-wide in-memory obfuscation successful!")
 
 

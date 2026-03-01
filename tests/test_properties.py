@@ -22,10 +22,8 @@ def python_snippets():
             st.just("x = {'a': 1, 'b': 2}"),
         ),
         lambda children: st.one_of(
-            st.builds(lambda c: "
-".join(c), st.lists(children, min_size=1, max_size=3)),
-            st.builds(lambda c: f"if True:
-    {c}", children),
+            st.builds(lambda c: "\n".join(c), st.lists(children, min_size=1, max_size=3)),
+            st.builds(lambda c: f"if True:\n    {c}", children),
         ),
         max_leaves=5
     )
@@ -66,20 +64,19 @@ def test_obfuscation_preserves_executable_syntax(source):
             return
             
         # If the original worked but obfuscated failed, we found a bug!
-        pytest.fail(f"Obfuscation broke valid code!
-Original:
-{source}
-
-Obfuscated:
-{obfuscated}
-Error: {e}")
+        pytest.fail(
+            f"Obfuscation broke valid code!\n"
+            f"Original:\n{source}\n\n"
+            f"Obfuscated:\n{obfuscated}\n"
+            f"Error: {e}"
+        )
 
 
 def test_polymorphic_strings_property():
     """
     Verify that two runs on the same string produce different code (Polymorphism).
     """
-    obf = Obfuscator(encrypt_code=False, string_method="polymorphic")
+    obf = Obfuscator(encrypt_code=False, string_method="polymorphic", exclude_names={"s"})
     source = "s = 'This is a secret string'"
     
     run1 = obf.obfuscate_source(source)

@@ -168,6 +168,8 @@ def _add_obfuscate_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--license-info', type=str, default=DEFAULT_LICENSE)
     parser.add_argument('--expire-days', type=int)
     parser.add_argument('--bind-machine', action='store_true')
+    parser.add_argument('--parallel', action='store_true', help='Enable parallel file processing')
+    parser.add_argument('--workers', type=int, default=None, help='Number of parallel workers')
     parser.add_argument('-v', '--verbose', action='store_true', help=HELP_VERBOSE)
 
 
@@ -292,11 +294,14 @@ def _obfuscate_directory(
 ) -> int:
     """Obfuscate a directory. Returns exit code."""
     verbose = getattr(parsed, 'verbose', False)
+    use_parallel = getattr(parsed, 'parallel', False)
+    workers = getattr(parsed, 'workers', None)
     output_path.mkdir(parents=True, exist_ok=True)
 
     if verbose:
         msg = "Protecting" if obfuscator.config.get('encrypt_code') else "Obfuscating"
-        print(f"{msg} directory: {input_path}")
+        parallel_msg = f" (parallel, {workers or 'auto'} workers)" if use_parallel else ""
+        print(f"{msg} directory: {input_path}{parallel_msg}")
         print(f"Output directory: {output_path}\n")
 
     recursive = getattr(parsed, 'recursive', True) and not getattr(parsed, 'no_recursive', False)

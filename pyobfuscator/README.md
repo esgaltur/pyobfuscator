@@ -1,34 +1,30 @@
 # PyObfuscator
 
-A lightweight, license-free Python code obfuscation library with advanced runtime protection.
+A comprehensive, **100% free and open source** Python code protection framework with enterprise-grade security.
 
 ## Features
 
+### Core Obfuscation
+
 - **Name Obfuscation**: Renames variables, functions, and classes to unreadable names
-- **String Obfuscation**: Encodes string literals using base64, hex, or XOR encoding
+- **Polymorphic String Obfuscation**: Unique, randomized decoding logic for every string literal
+- **Legacy String Encoding**: Optional support for base64, hex, or XOR encoding strategies
 - **Code Compression**: Optionally compresses code into a single exec() statement
 - **Docstring Removal**: Removes docstrings to reduce code size and readability
 - **Comment Removal**: Comments are automatically removed during AST processing
-- **Runtime Protection**: Encrypted bytecode with runtime decryption
-- **PYD Compilation**: Compile runtime to .pyd (C extension) for maximum protection
-- **Strong Encryption**: AES-256-GCM with PBKDF2 key derivation (100,000 iterations)
-- **Configurable**: Fine-tune what gets obfuscated and what remains readable
 
-## Security
+### Runtime Protection
+
+- **Encrypted Bytecode**: Code compiled to bytecode and encrypted before distribution
+- **PYD Compilation**: Compile runtime to .pyd/.so (C extension) for maximum protection
+- **Polymorphic Runtime**: Each protection generates unique obfuscated code
+- **Import Hooks**: Custom module loading system for protected imports
 
 ### Encryption
-- **Algorithm**: AES-256-GCM (Galois/Counter Mode)
-- **Key Derivation**: PBKDF2-HMAC-SHA256 with 100,000 iterations
-- **Authentication**: Built-in integrity verification (AEAD)
-- **Per-file Salt**: Random 16-byte salt for each encryption
-- **Per-file Nonce**: Random 12-byte nonce for each encryption
 
-### Optional Dependencies
-For best performance, install the `cryptography` package:
-```bash
-pip install cryptography
-```
-Without it, a pure Python fallback is used (same security, slower).
+- **AES-256-GCM**: Military-grade encryption with authentication
+- **PBKDF2 Key Derivation**: 100,000 iterations for key strengthening
+- **Per-file Salt/Nonce**: Unique cryptographic parameters for each file
 
 ## Project Structure
 
@@ -54,7 +50,14 @@ pyobfuscator/
 
 ## Installation
 
-This library is included in the project. For PYD protection, install Cython:
+Clone the repository and install dependencies:
+```bash
+git clone https://github.com/esgaltur/pyobfuscator.git
+cd pyobfuscator
+pip install -e .
+```
+
+For PYD protection, install Cython:
 ```bash
 pip install cython
 ```
@@ -189,7 +192,7 @@ def _zX9pD():
 ### After PYD Protection (Encrypted Runtime)
 
 ```python
-# PyObfuscator 1.0.0 (PYD), abc123, Protected, 2026-01-30
+# PyObfuscator 2.0.0 (PYD), abc123, Protected, 2026-03-01
 from pyobfuscator_runtime_abc123 import __pyobfuscator__
 __pyobfuscator__(__name__, __file__, b'UFlEMDAwMDEAA...')
 ```
@@ -206,10 +209,10 @@ python pyobfuscator/examples/demo_runtime_protection.py
 # PYD protection demo
 python pyobfuscator/examples/demo_pyd_protection.py
 
-# Obfuscate github_pr_dashboard (AST-based)
+# Obfuscate a sample project (directory-level)
 python pyobfuscator/examples/obfuscate_dashboard.py
 
-# Protect github_pr_dashboard (PYD runtime)
+# Protect a sample project (PYD runtime)
 python pyobfuscator/examples/protect_dashboard.py
 
 # Run tests

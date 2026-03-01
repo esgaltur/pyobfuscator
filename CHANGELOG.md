@@ -5,17 +5,27 @@ All notable changes to PyObfuscator will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2026-01-31
+## [2.0.0] - 2026-03-01
 
-### 🎉 Initial Release
+### 🎉 Major Release
 
-PyObfuscator 1.0.0 is the first stable release of this comprehensive, **100% free and open source** Python code obfuscation library with enterprise-grade runtime protection.
+PyObfuscator 2.0.0 introduces a **Hexagonal (Ports & Adapters) Architecture** with advanced protection features.
+
+### ✨ New in v2.0
+
+- **Hexagonal Architecture**: Production-grade modularity with clean separation of concerns
+- **Polymorphic String Engine**: Every string gets a unique, randomized inline decryption function
+- **Distributed Integrity Web**: Functions verify each other's integrity in a tangled web
+- **Honey-Pot Identifiers**: Automated injection of trap variables that crash debuggers
+- **Unified .pyd Pipeline**: Native C-compilation integrated directly into main obfuscation flow
+- **Enhanced CLI**: Full E2E workflow support with `--encrypt`, `--protect`, and `--obfuscate` flags
 
 ### ✨ Core Features
 
 #### Code Obfuscation
 - **Name Obfuscation**: Intelligent renaming of variables, functions, and classes to unreadable identifiers
-- **String Obfuscation**: Multiple encoding methods (Base64, Hex, XOR) for string literals
+- **Polymorphic String Obfuscation**: Unique, randomized decoding logic for every string literal
+- **Legacy String Encoding**: Optional support for base64, hex, or XOR encoding strategies
 - **Code Compression**: Optional compression into single exec() statements
 - **Docstring & Comment Removal**: Automatic cleanup for reduced code size
 - **Configurable Obfuscation**: Fine-grained control over what gets obfuscated
@@ -41,7 +51,7 @@ PyObfuscator 1.0.0 is the first stable release of this comprehensive, **100% fre
 - **Anti-analysis in VM**: Detects tracing and corrupts output
 - **Subroutine Support**: CALL/RET instructions for complex transformations
 
-#### Anti-Analysis Protection (12+ Layers)
+#### Anti-Analysis Protection (15+ Layers)
 1. **Self-integrity Check**: Runtime module hash verification
 2. **Anti-patching**: Detects modifications to runtime files
 3. **Call Stack Verification**: Validates execution context
@@ -54,6 +64,9 @@ PyObfuscator 1.0.0 is the first stable release of this comprehensive, **100% fre
 10. **Environment Variable Check**: Detects PYTHONDEBUG, PYCHARM_DEBUG, etc.
 11. **VM/Sandbox Detection**: Detects VMware, VirtualBox, QEMU, Hyper-V
 12. **Profile/Trace Check**: Detects sys.settrace/setprofile hooks
+13. **Honey-Pot Identifiers**: Trap variables that crash debuggers
+14. **Distributed Integrity**: Inter-dependent function verification
+15. **Opaque Predicates v2**: Session-blinded opaque conditions
 
 #### Control Flow Protection
 - **Control Flow Dispatch**: Indirect function calls through dispatch tables
@@ -159,12 +172,47 @@ pyd_protector.protect_file("input.py", "protected.py")
 
 ### 📝 Examples
 
-The `examples/` directory includes:
-- `demo.py`: Basic obfuscation examples
-- `demo_runtime_protection.py`: Runtime protection demonstrations
-- `demo_pyd_protection.py`: PYD compilation examples
-- `obfuscate_dashboard.py`: Interactive obfuscation dashboard
-- `protect_dashboard.py`: Interactive protection dashboard
+The `examples/` directory includes demonstrations of PyObfuscator's capabilities:
+
+```python
+# Basic obfuscation example
+from pyobfuscator import Obfuscator
+
+source = '''
+def calculate_profit(revenue, costs):
+    """Calculate net profit from revenue and costs."""
+    margin = revenue - costs
+    tax_rate = 0.21
+    return margin * (1 - tax_rate)
+
+result = calculate_profit(100000, 45000)
+print(f"Net profit: ${result:,.2f}")
+'''
+
+obfuscator = Obfuscator(
+    obfuscate_names=True,
+    obfuscate_strings=True,
+    string_method="xor"
+)
+protected = obfuscator.obfuscate_source(source)
+exec(protected)  # Still works: "Net profit: $43,450.00"
+```
+
+```python
+# Full protection pipeline
+from pyobfuscator import Obfuscator
+from pyobfuscator.runtime_protection import RuntimeProtector
+
+# Step 1: Obfuscate
+obfuscator = Obfuscator(intensity=3)
+obfuscated = obfuscator.obfuscate_source(source)
+
+# Step 2: Add runtime protection
+protector = RuntimeProtector()
+protected = protector.protect(obfuscated)
+
+# The protected code now includes anti-debug checks
+```
 
 ### 🔐 Security Notes
 
@@ -176,11 +224,12 @@ The `examples/` directory includes:
 ### 🚀 Getting Started
 
 ```bash
-# Install from PyPI
-pip install pyobfuscator
+# Clone and install
+git clone https://github.com/esgaltur/pyobfuscator.git
+cd pyobfuscator && pip install -e .
 
 # Install with all optional dependencies
-pip install pyobfuscator[all]
+pip install -e ".[all]"
 
 # Verify installation
 pyobfuscator --version
@@ -203,12 +252,13 @@ Thanks to the Python community and all contributors who made this project possib
 - **Homepage**: https://github.com/esgaltur/pyobfuscator
 - **Documentation**: https://github.com/esgaltur/pyobfuscator#readme
 - **Issues**: https://github.com/esgaltur/pyobfuscator/issues
-- **PyPI**: https://pypi.org/project/pyobfuscator/
 
 ---
 
 ## Version History
 
+- **2.0.0** (2026-03-01): Major release with Hexagonal Architecture
 - **1.0.0** (2026-01-31): Initial stable release
 
+[2.0.0]: https://github.com/esgaltur/pyobfuscator/releases/tag/v2.0.0
 [1.0.0]: https://github.com/esgaltur/pyobfuscator/releases/tag/v1.0.0

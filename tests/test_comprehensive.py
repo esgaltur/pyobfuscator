@@ -806,7 +806,7 @@ if __name__ == "__main__":
             (input_dir / "config.py").write_text('''
 class AppConfig:
     DEBUG = False
-    VERSION = "1.0.0"
+    VERSION = "2.0.0"
     
     def __init__(self):
         self.settings = {}
@@ -1372,7 +1372,8 @@ class TestDistributedTimingChecker:
         checker.generate_checkpoint()  # Need at least one checkpoint
 
         code = checker.generate_verification()
-        assert "RuntimeError" in code or "pass" in code
+        assert "time" in code
+        assert "assert" in code
 
     def test_multiple_checkpoints(self):
         """Test multiple checkpoints."""

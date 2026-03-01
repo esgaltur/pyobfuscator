@@ -231,7 +231,7 @@ class RuntimeProtector:
 
         payload_str = "b'" + encoded_payload + "'"
 
-        return f'''# PyObfuscator 1.0.0, {self.runtime_id}, {self.license_info}, {timestamp}
+        return f'''# PyObfuscator 2.0.0, {self.runtime_id}, {self.license_info}, {timestamp}
 # Source: {safe_filename}
 from pyobfuscator_runtime_{self.runtime_id} import __pyobfuscator__
 __pyobfuscator__(__name__, __file__, {payload_str})

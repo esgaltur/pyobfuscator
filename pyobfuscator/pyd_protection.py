@@ -179,7 +179,7 @@ class PydRuntimeProtector:
         # Sanitize filename for comment (remove path, keep basename)
         safe_filename = Path(filename).name if filename else self.DEFAULT_FILENAME
 
-        return f'''# PyObfuscator 1.0.0 (PYD), {self.runtime_id}, {self.license_info}, {timestamp}
+        return f'''# PyObfuscator 2.0.0 (PYD), {self.runtime_id}, {self.license_info}, {timestamp}
 # Source: {safe_filename}
 from pyobfuscator_runtime_{self.runtime_id} import __pyobfuscator__
 __pyobfuscator__(__name__, __file__, b'{encoded_payload}')

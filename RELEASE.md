@@ -104,7 +104,7 @@ Update version in `pyproject.toml`:
 ```toml
 [project]
 name = "pyobfuscator"
-version = "1.0.1"  # Update this
+version = "2.0.0"  # Update this
 ```
 
 ## Checklist Before Release
@@ -114,12 +114,12 @@ version = "1.0.1"  # Update this
 - [ ] CHANGELOG updated (if you have one)
 - [ ] README is up to date
 - [ ] All changes committed to git
-- [ ] Create a git tag: `git tag v1.0.0`
+- [ ] Create a git tag: `git tag v2.0.0`
 - [ ] Build succeeds: `python -m build`
 - [ ] Package check passes: `python -m twine check dist/*`
 - [ ] Test on TestPyPI first
 - [ ] Push to PyPI
-- [ ] Push git tag: `git push origin v1.0.0`
+- [ ] Push git tag: `git push origin v2.0.0`
 
 ## Troubleshooting
 

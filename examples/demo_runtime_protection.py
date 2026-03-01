@@ -66,7 +66,7 @@ if __name__ == "__main__":
 '''
 
     print("=" * 70)
-    print("Runtime Protection Demo (v3 - Advanced)")
+    print("Runtime Protection Demo")
     print("=" * 70)
 
     # Get current machine ID for demonstration
@@ -177,7 +177,7 @@ if __name__ == "__main__":
     print("Protection complete!")
     print(f"Runtime ID: {protector.runtime_id}")
     print(f"Output directory: {output_dir}")
-    print("\nNew Features in v3:")
+    print("\nFeatures:")
     print("  - Anti-debugging detection")
     print("  - Time-based license expiration")
     print("  - Hardware/machine binding")

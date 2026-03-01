@@ -9,7 +9,7 @@ Uses a Transformation Pipeline to apply multiple obfuscation steps.
 import ast
 import logging
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 # Core Domain
 from .core.registry import TransformerRegistry
@@ -88,22 +88,32 @@ class Obfuscator:
         frameworks = self.config.get('frameworks')
         if frameworks:
             self.exclude_names.update(FrameworkPresets.get_framework_excludes(frameworks))
-        
+
+        # Preserve entry points (public API names that must not be renamed)
+        entry_points = self.config.get('entry_points')
+        if entry_points:
+            self.exclude_names.update(entry_points)
+
         # Runtime protection
         self.runtime_protector = self._init_runtime_protector()
 
     def _init_runtime_protector(self) -> Optional[Any]:
         """Helper to initialize the appropriate runtime protector."""
+        # Extract only the keys that RuntimeProtector/PydRuntimeProtector accept
+        protector_keys = {
+            'license_info', 'encryption_key', 'expiration_date',
+            'allowed_machines', 'anti_debug', 'domain_lock',
+            'enable_vm_detection', 'enable_network_check', 'license_server_url',
+        }
+        protector_kwargs = {
+            k: v for k, v in self.config.items()
+            if k in protector_keys and v is not None
+        }
+
         if self.config.get('use_pyd_compilation'):
-            return PydRuntimeProtector(
-                anti_debug=self.config.get('anti_debug', True),
-                **self.config
-            )
+            return PydRuntimeProtector(**protector_kwargs)
         if self.config.get('encrypt_code'):
-            return RuntimeProtector(
-                anti_debug=self.config.get('anti_debug', True),
-                **self.config
-            )
+            return RuntimeProtector(**protector_kwargs)
         return None
 
     def _build_pipeline(self) -> TransformationPipeline:

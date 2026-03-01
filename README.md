@@ -1,24 +1,28 @@
 # PyObfuscator v2.0
 
 [![CI](https://github.com/esgaltur/pyobfuscator/actions/workflows/ci.yml/badge.svg)](https://github.com/esgaltur/pyobfuscator/actions/workflows/ci.yml)
-[![PyPI version](https://badge.fury.io/py/pyobfuscator.svg)](https://badge.fury.io/py/pyobfuscator)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Security: 60+ Features](https://img.shields.io/badge/Security-60%2B%20Features-green.svg)](https://github.com/esgaltur/pyobfuscator#features)
 [![White Paper](https://img.shields.io/badge/White%20Paper-Available-blue.svg)](docs/WHITEPAPER.md)
 [![Documentation](https://img.shields.io/badge/Docs-Technical-green.svg)](docs/TECHNICAL_DOCUMENTATION.md)
+[![Code Style](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-A comprehensive, **100% free and open source** Python code obfuscation library with enterprise-grade runtime protection.
-PyObfuscator v2.0 introduces a **Hexagonal (Ports & Adapters) Architecture** and elite-tier security features like 
-**Polymorphic Decryptors** and **Distributed Integrity Webs**.
+A comprehensive, **100% free and open source** Python code protection framework with enterprise-grade security.
+PyObfuscator v2.0 implements a **Hexagonal (Ports & Adapters) Architecture** delivering advanced features including
+**Polymorphic Decryptors**, **Distributed Integrity Webs**, and **Native PYD Compilation**.
 
-## 🚀 What's New in v2.0 (Elite Edition)
+## 🚀 What's New in v2.0
 
-- **Hexagonal Architecture**: Refactored for production-grade modularity and extensibility.
-- **Polymorphic String Engine**: Every string gets a unique, randomized inline decryption function. No two obfuscation runs are the same.
-- **Distributed Integrity Web**: Functions now check each other's integrity in a tangled web, making isolated bypasses impossible.
-- **Honey-Pot Identifiers**: Automated injection of fake trap variables (e.g., `AWS_SECRET_KEY`) that trigger crashes if accessed.
-- **Unified .pyd Pipeline**: The "Gold Standard" native C-compilation is now integrated directly into the main obfuscation flow.
+- **Hexagonal Architecture**: Production-grade modularity with clean separation of concerns
+- **Polymorphic String Engine**: Every string gets a unique, randomized inline decryption function
+- **Distributed Integrity Web**: Functions verify each other's integrity in a tangled web
+- **Honey-Pot Identifiers**: Automated injection of trap variables that crash debuggers
+- **Unified .pyd Pipeline**: Native C-compilation integrated directly into main obfuscation flow
+- **Enhanced CLI**: Full E2E workflow support with `--encrypt`, `--protect`, and `--obfuscate` flags
+- **Runtime Protection**: Anti-debug, integrity checks, and environment fingerprinting built-in
+
+> **Core Philosophy**: Protection is the primary feature. Obfuscation handles variables, but the real power is in **hiding and encrypting the actual code**.
 
 ## 📚 Documentation
 
@@ -26,6 +30,20 @@ PyObfuscator v2.0 introduces a **Hexagonal (Ports & Adapters) Architecture** and
 - **[Technical Documentation](docs/TECHNICAL_DOCUMENTATION.md)** - Detailed scientific basis and implementation details
 - **[Citation File](CITATION.cff)** - For academic citations
 - **[BibTeX References](docs/references.bib)** - Bibliography for academic papers
+
+## ⚡ Quick Start
+
+```bash
+# Install
+git clone https://github.com/esgaltur/pyobfuscator.git
+cd pyobfuscator && pip install -e .
+
+# Full protection: obfuscate + encrypt + protect
+pyobfuscator -i script.py -o protected/ --obfuscate --encrypt --protect
+
+# Run protected code
+python protected/script.py
+```
 
 ## ⚠️ Important: Understanding the Terminology
 
@@ -147,7 +165,12 @@ PyObfuscator is intentionally open source because:
 ## Installation
 
 ```bash
-pip install pyobfuscator
+# Clone the repository
+git clone https://github.com/esgaltur/pyobfuscator.git
+cd pyobfuscator
+
+# Install in development mode
+pip install -e .
 ```
 
 For PYD protection, install Cython:
@@ -161,35 +184,51 @@ pip install cython
 ### Command Line
 
 ```bash
-# NEW: Obfuscate with integrated PYD compilation (Gold Standard)
+# Full protection pipeline (recommended)
+pyobfuscator -i script.py -o ./dist --obfuscate --encrypt --protect
+
+# Obfuscate with PYD compilation (Gold Standard)
 pyobfuscator obfuscate -i script.py -o ./dist --pyd
 
-# NEW: Enable distributed integrity checks and honeypots
+# Enable distributed integrity checks and honeypots
 pyobfuscator obfuscate -i src/ -o ./dist --integrity-check
 
-# Standard obfuscation
+# Standard obfuscation only
 pyobfuscator obfuscate -i script.py -o obfuscated.py
 
-# Single file (short form)
-pyobfuscator -i script.py -o obfuscated.py
+# Encryption only
+pyobfuscator -i script.py -o encrypted.py --encrypt
+
+# Runtime protection only
+pyobfuscator -i script.py -o protected.py --protect
 ```
 
 ### Python API
 
 ```python
 from pyobfuscator import Obfuscator
+from pyobfuscator.runtime_protection import RuntimeProtector
+from pyobfuscator.crypto import CryptoEngine
 
-# Create elite-tier obfuscator
+# Full protection pipeline
+source = 'def hello(): print("Secret message")'
+
+# Step 1: Obfuscate
 obfuscator = Obfuscator(
     use_pyd_compilation=True,  # The ultimate protection
     integrity_checks=True,     # Distributed integrity web
     string_method="polymorphic", # Randomized unique decryptors
     intensity=3                # Maximum obfuscation depth
 )
-
-# Obfuscate source code
-source = 'def hello(): print("Secret")'
 obfuscated = obfuscator.obfuscate_source(source)
+
+# Step 2: Encrypt
+crypto = CryptoEngine(key=b"your-secret-key-32bytes-long!!")
+encrypted = crypto.encrypt(obfuscated.encode())
+
+# Step 3: Add Runtime Protection
+protector = RuntimeProtector()
+protected = protector.protect(source)
 ```
 
 ## Comparison with Other Solutions
@@ -206,3 +245,26 @@ obfuscated = obfuscator.obfuscate_source(source)
 ## License
 
 MIT License - Free for commercial and personal use.
+
+## 📖 Citation
+
+If you use PyObfuscator in academic research, please cite:
+
+```bibtex
+@software{pyobfuscator2026,
+  author = {Sosnovic, Dmitrij},
+  title = {PyObfuscator: A Multi-Layer Defense Framework for Python Code Protection},
+  version = {2.0.0},
+  year = {2026},
+  url = {https://github.com/esgaltur/pyobfuscator}
+}
+```
+
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to PyObfuscator.
+
+## 🔒 Security
+
+For security vulnerabilities, please see [SECURITY.md](SECURITY.md).
+

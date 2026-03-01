@@ -291,13 +291,17 @@ class TestIntegrityTransformer:
 
     def test_integrity_check_added(self):
         """Test that integrity checks are added to functions."""
+        from pyobfuscator.core.context import TransformationContext
+
         source = '''
 def protected_func(x):
     a = x + 1
     return a
 '''
         tree = ast.parse(source)
+        context = TransformationContext()
         transformer = IntegrityTransformer(intensity=3, critical_functions=['protected_func'])
+        transformer.context = context
 
         random.seed(42)
         new_tree = transformer.visit(tree)
@@ -305,8 +309,8 @@ def protected_func(x):
 
         result = ast.unparse(new_tree)
 
-        # Verify the code contains integrity-related code
-        assert 'hashlib' in result or 'import' in result
+        # Verify the code contains integrity-related checkpoint variables
+        assert '_chk_' in result
 
         # The function should still work (integrity check passes)
         namespace = {}
@@ -402,9 +406,9 @@ def target_func(x):
     def test_number_obfuscation(self):
         """Test that numeric literals are obfuscated."""
         obfuscator = Obfuscator(
-            encrypt_code=False,  # Disable encryption for testing
+            encrypt_code=False,
             number_obfuscation=True,
-            obfuscation_intensity=3,
+            intensity=3,
             rename_variables=False,
             rename_functions=False,
             rename_classes=False,
@@ -545,12 +549,10 @@ def func{i}(x):
                 obfuscate_strings=False
             )
 
-            # Test parallel processing
+            # Test directory obfuscation (parallel is handled at CLI level, not API)
             results = obfuscator.obfuscate_directory(
                 input_dir,
                 output_dir,
-                parallel=True,
-                max_workers=2
             )
 
             # Verify all files processed successfully

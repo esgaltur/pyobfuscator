@@ -2,8 +2,8 @@ cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
 title: "PyObfuscator: A Multi-Layer Defense Framework for Python Code Protection"
-version: 1.0.0
-date-released: 2026-01-30
+version: 2.0.0
+date-released: 2026-03-01
 url: "https://github.com/esgaltur/pyobfuscator"
 repository-code: "https://github.com/esgaltur/pyobfuscator"
 license: MIT
@@ -25,19 +25,26 @@ keywords:
   - pbkdf2
   - software-protection
   - intellectual-property
+  - polymorphic-code
+  - control-flow-flattening
+  - integrity-verification
+  - cython
+  - pyd-compilation
 abstract: >-
-  PyObfuscator is an open-source Python code protection framework
-  implementing defense-in-depth through six complementary security
-  layers: AST-based code obfuscation, AES-256-GCM encryption with
-  PBKDF2 key derivation, control flow protection with opaque predicates,
-  code virtualization with a custom stack-based VM, comprehensive
-  anti-analysis suite with 12+ detection mechanisms, and licensing/DRM
-  capabilities. The framework generates polymorphic runtimes with
-  unique variable names, randomized opcodes, and self-modifying code
-  to resist pattern matching. Optional Cython compilation produces
-  native .pyd/.so binaries for maximum protection. PyObfuscator
-  provides enterprise-grade protection comparable to commercial
-  solutions while remaining completely free and open source.
+  PyObfuscator v2.0 is an open-source Python code protection framework
+  implementing defense-in-depth through multiple security layers: AST-based
+  code obfuscation with polymorphic string engines, AES-256-GCM encryption
+  with PBKDF2 key derivation, control flow flattening with opaque predicates,
+  code virtualization with a custom stack-based VM featuring randomized opcodes,
+  comprehensive anti-analysis suite with 15+ detection mechanisms including
+  distributed integrity webs and honey-pot identifiers, and licensing/DRM
+  capabilities. The framework features a Hexagonal (Ports & Adapters)
+  Architecture for production-grade modularity. It generates polymorphic
+  runtimes with unique variable names, randomized decryptors, and
+  self-modifying code to resist pattern matching. Integrated Cython
+  compilation produces native .pyd/.so binaries for maximum protection.
+  PyObfuscator provides enterprise-grade protection comparable to commercial
+  solutions while remaining completely free and open source under MIT license.
 references:
   - type: article
     authors:
