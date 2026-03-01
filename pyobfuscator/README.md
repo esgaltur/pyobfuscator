@@ -43,8 +43,8 @@ pyobfuscator/
     ├── demo.py
     ├── demo_runtime_protection.py
     ├── demo_pyd_protection.py
-    ├── obfuscate_dashboard.py
-    ├── protect_dashboard.py
+    ├── obfuscate_project.py
+    ├── protect_project.py
     └── tests.py
 ```
 
@@ -210,10 +210,10 @@ python pyobfuscator/examples/demo_runtime_protection.py
 python pyobfuscator/examples/demo_pyd_protection.py
 
 # Obfuscate a sample project (directory-level)
-python pyobfuscator/examples/obfuscate_dashboard.py
+python pyobfuscator/examples/obfuscate_project.py
 
 # Protect a sample project (PYD runtime)
-python pyobfuscator/examples/protect_dashboard.py
+python pyobfuscator/examples/protect_project.py
 
 # Run tests
 python pyobfuscator/examples/tests.py
