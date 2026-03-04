@@ -122,7 +122,7 @@ class PydRuntimeProtector:
 
     def _generate_runtime_id(self) -> str:
         """Generate a unique runtime identifier."""
-        return hashlib.md5(self.encryption_key).hexdigest()[:6]
+        return hashlib.sha256(self.encryption_key).hexdigest()[:6]
 
     def _compile_source(self, source: str, filename: str = None) -> bytes:
         """Compile Python source to bytecode."""

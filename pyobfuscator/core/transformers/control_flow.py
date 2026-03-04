@@ -132,9 +132,69 @@ class ControlFlowFlattener(BaseTransformer):
         if random.random() > 0.3 * self.intensity:
             return node
 
-        # Placeholder for full CFF logic
-        # In future, this will return a transformed node
-        return node if node else None
+        state_var = self._get_unique_name("_state")
+        
+        blocks = []
+        for stmt in node.body:
+            blocks.append(stmt)
+            
+        states = list(range(1, len(blocks) + 1))
+        random.shuffle(states)
+        
+        state_mapping = {}
+        for i, state_id in enumerate(states):
+            state_mapping[i] = state_id
+            
+        end_state = 0
+        
+        ifs = []
+        for i, stmt in enumerate(blocks):
+            current_state = state_mapping[i]
+            next_state = state_mapping[i + 1] if i + 1 < len(blocks) else end_state
+            
+            body = [stmt]
+            
+            if not isinstance(stmt, (ast.Return, ast.Raise)):
+                body.append(ast.Assign(
+                    targets=[ast.Name(id=state_var, ctx=ast.Store())],
+                    value=ast.Constant(value=next_state)
+                ))
+            
+            ifs.append((current_state, body))
+            
+        ifs.sort(key=lambda x: x[0])
+        
+        if_stmt = None
+        for state_id, body in reversed(ifs):
+            test = ast.Compare(
+                left=ast.Name(id=state_var, ctx=ast.Load()),
+                ops=[ast.Eq()],
+                comparators=[ast.Constant(value=state_id)]
+            )
+            if if_stmt is None:
+                if_stmt = ast.If(test=test, body=body, orelse=[])
+            else:
+                if_stmt = ast.If(test=test, body=body, orelse=[if_stmt])
+                
+        first_state = state_mapping[0]
+        
+        init_state = ast.Assign(
+            targets=[ast.Name(id=state_var, ctx=ast.Store())],
+            value=ast.Constant(value=first_state)
+        )
+        
+        while_loop = ast.While(
+            test=ast.Compare(
+                left=ast.Name(id=state_var, ctx=ast.Load()),
+                ops=[ast.NotEq()],
+                comparators=[ast.Constant(value=end_state)]
+            ),
+            body=[if_stmt],
+            orelse=[]
+        )
+        
+        node.body = [init_state, while_loop]
+        return node
 
     def transform(self, source: str, context: Optional['TransformationContext'] = None) -> str:
         tree = self._parse_source(source)

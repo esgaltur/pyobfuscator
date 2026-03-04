@@ -1,0 +1,174 @@
+{
+  "computational": {
+    "unprotected_avg_time": 0.11118059000000358,
+    "Baseline (None)": {
+      "obfuscation_time": 0.0012294999996811384,
+      "exec_time_avg": 0.11105882000001657,
+      "exec_time_std": 0.001241287437368819,
+      "peak_memory_kb": 39.5478515625,
+      "size_overhead_ratio": 1.4736842105263157,
+      "slowdown_factor": 0.9989047548678506
+    },
+    "Basic (Rename)": {
+      "obfuscation_time": 0.000769899999795598,
+      "exec_time_avg": 0.11124243999984174,
+      "exec_time_std": 0.0017027820597742469,
+      "peak_memory_kb": 39.5478515625,
+      "size_overhead_ratio": 1.4736842105263157,
+      "slowdown_factor": 1.0005563021372539
+    },
+    "Advanced (Polymorphic Strings)": {
+      "obfuscation_time": 0.0011830999997073377,
+      "exec_time_avg": 0.11107808000015211,
+      "exec_time_std": 0.0006018051195194982,
+      "peak_memory_kb": 39.5478515625,
+      "size_overhead_ratio": 1.4736842105263157,
+      "slowdown_factor": 0.99907798654557
+    },
+    "Hardened (CFF + Strings)": {
+      "obfuscation_time": 0.0015885000002526795,
+      "exec_time_avg": 0.11956309999995937,
+      "exec_time_std": 0.0003497379090370135,
+      "peak_memory_kb": 65.03125,
+      "size_overhead_ratio": 3.2039473684210527,
+      "slowdown_factor": 1.0753954444742155
+    },
+    "Maximum (All features)": {
+      "obfuscation_time": 0.0028109999998378044,
+      "exec_time_avg": 0.1190141399998538,
+      "exec_time_std": 0.0011551135152670492,
+      "peak_memory_kb": 79.349609375,
+      "size_overhead_ratio": 4.894736842105263,
+      "slowdown_factor": 1.0704578919742194
+    }
+  },
+  "string_intensive": {
+    "unprotected_avg_time": 0.001909269999987373,
+    "Baseline (None)": {
+      "obfuscation_time": 0.0012381000001369102,
+      "exec_time_avg": 0.00197039999984554,
+      "exec_time_std": 0.0003387057868613585,
+      "peak_memory_kb": 168.109375,
+      "size_overhead_ratio": 1.2763819095477387,
+      "slowdown_factor": 1.0320174725725388
+    },
+    "Basic (Rename)": {
+      "obfuscation_time": 0.0009307999998782179,
+      "exec_time_avg": 0.0019376000000193017,
+      "exec_time_std": 0.00027390394303597975,
+      "peak_memory_kb": 168.171875,
+      "size_overhead_ratio": 1.2763819095477387,
+      "slowdown_factor": 1.0148381318682618
+    },
+    "Advanced (Polymorphic Strings)": {
+      "obfuscation_time": 0.0012709000002359971,
+      "exec_time_avg": 0.0020057599999745435,
+      "exec_time_std": 0.00027069154588704194,
+      "peak_memory_kb": 168.171875,
+      "size_overhead_ratio": 1.2763819095477387,
+      "slowdown_factor": 1.050537640034049
+    },
+    "Hardened (CFF + Strings)": {
+      "obfuscation_time": 0.0017751000000316708,
+      "exec_time_avg": 0.0020188399998914974,
+      "exec_time_std": 0.0003310337413073053,
+      "peak_memory_kb": 177.6416015625,
+      "size_overhead_ratio": 2.6381909547738696,
+      "slowdown_factor": 1.0573884258930635
+    },
+    "Maximum (All features)": {
+      "obfuscation_time": 0.0033797999999478634,
+      "exec_time_avg": 0.0021058800000901103,
+      "exec_time_std": 0.0003478994351821487,
+      "peak_memory_kb": 187.32421875,
+      "size_overhead_ratio": 3.422110552763819,
+      "slowdown_factor": 1.1029765303514105
+    }
+  },
+  "recursive": {
+    "unprotected_avg_time": 0.001692410000032396,
+    "Baseline (None)": {
+      "obfuscation_time": 0.0011116999999103427,
+      "exec_time_avg": 0.0017324999999800638,
+      "exec_time_std": 0.00023558354138227482,
+      "peak_memory_kb": 39.43359375,
+      "size_overhead_ratio": 1.7028985507246377,
+      "slowdown_factor": 1.023688113369042
+    },
+    "Basic (Rename)": {
+      "obfuscation_time": 0.0006905999998707557,
+      "exec_time_avg": 0.0016544800001611292,
+      "exec_time_std": 0.00018239936143133468,
+      "peak_memory_kb": 39.43359375,
+      "size_overhead_ratio": 1.7028985507246377,
+      "slowdown_factor": 0.9775881731551215
+    },
+    "Advanced (Polymorphic Strings)": {
+      "obfuscation_time": 0.001172700000097393,
+      "exec_time_avg": 0.0017122999998719023,
+      "exec_time_std": 0.00031999016381937455,
+      "peak_memory_kb": 39.43359375,
+      "size_overhead_ratio": 1.7028985507246377,
+      "slowdown_factor": 1.0117524712328132
+    },
+    "Hardened (CFF + Strings)": {
+      "obfuscation_time": 0.0013934999997218256,
+      "exec_time_avg": 0.0017858600001090963,
+      "exec_time_std": 0.00029205616424786597,
+      "peak_memory_kb": 39.43359375,
+      "size_overhead_ratio": 1.7028985507246377,
+      "slowdown_factor": 1.0552171164640434
+    },
+    "Maximum (All features)": {
+      "obfuscation_time": 0.0022835999998278567,
+      "exec_time_avg": 0.0020061400000486174,
+      "exec_time_std": 0.00030419725183164834,
+      "peak_memory_kb": 61.306640625,
+      "size_overhead_ratio": 3.449275362318841,
+      "slowdown_factor": 1.1853747023535761
+    }
+  },
+  "object_oriented": {
+    "unprotected_avg_time": 0.0035237900000083754,
+    "Baseline (None)": {
+      "obfuscation_time": 0.0014612999998462328,
+      "exec_time_avg": 0.0036695800000416056,
+      "exec_time_std": 0.0003253476479021095,
+      "peak_memory_kb": 52.7626953125,
+      "size_overhead_ratio": 1.41796875,
+      "slowdown_factor": 1.041373067076325
+    },
+    "Basic (Rename)": {
+      "obfuscation_time": 0.0012136999998801912,
+      "exec_time_avg": 0.003616799999963405,
+      "exec_time_std": 0.00028199091291568947,
+      "peak_memory_kb": 52.7626953125,
+      "size_overhead_ratio": 1.41796875,
+      "slowdown_factor": 1.0263948759587855
+    },
+    "Advanced (Polymorphic Strings)": {
+      "obfuscation_time": 0.0015633999996680359,
+      "exec_time_avg": 0.003567499999917345,
+      "exec_time_std": 0.00028261152646585056,
+      "peak_memory_kb": 52.7626953125,
+      "size_overhead_ratio": 1.41796875,
+      "slowdown_factor": 1.0124042578896204
+    },
+    "Hardened (CFF + Strings)": {
+      "obfuscation_time": 0.0021280999999362393,
+      "exec_time_avg": 0.0036818599999605796,
+      "exec_time_std": 0.0003288105504983939,
+      "peak_memory_kb": 78.4931640625,
+      "size_overhead_ratio": 2.4453125,
+      "slowdown_factor": 1.0448579512263299
+    },
+    "Maximum (All features)": {
+      "obfuscation_time": 0.003899300000284711,
+      "exec_time_avg": 0.004054219999943598,
+      "exec_time_std": 0.00030330026712922705,
+      "peak_memory_kb": 97.4404296875,
+      "size_overhead_ratio": 3.96484375,
+      "slowdown_factor": 1.1505282664216545
+    }
+  }
+}

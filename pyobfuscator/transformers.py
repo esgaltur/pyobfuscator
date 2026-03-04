@@ -13,10 +13,7 @@ from .core.pipeline import TransformationPipeline
 # Import the actual implementations for backward compatibility of class names
 from .core.transformers.control_flow import ControlFlowObfuscator, ControlFlowFlattener
 from .core.transformers.literal_obfuscator import NumberObfuscator, BuiltinObfuscator
-from .core.transformers.integrity import IntegrityTransformer  # I need to create this one!
-
-# If IntegrityTransformer wasn't created yet, I'll create it now.
-# Wait, I missed creating integrity.py earlier.
+from .core.transformers.integrity import IntegrityTransformer
 
 def apply_advanced_obfuscation(
     tree: ast.AST,
@@ -41,7 +38,8 @@ def apply_advanced_obfuscation(
         pipeline.add_transformer(TransformerRegistry.create("number_obfuscator", intensity=intensity))
     if builtin_obfuscation:
         pipeline.add_transformer(TransformerRegistry.create("builtin_obfuscator"))
-    # Note: integrity_check handling would go here if implemented in core
+    if integrity_check:
+        pipeline.add_transformer(TransformerRegistry.create("integrity_transformer", intensity=intensity))
     
     obfuscated = pipeline.execute(source)
     return ast.parse(obfuscated)

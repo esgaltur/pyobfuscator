@@ -67,6 +67,8 @@ class Obfuscator:
             'number_obfuscation': False,
             'builtin_obfuscation': False,
             'integrity_checks': False,
+            'code_virtualization': False,
+            'use_whitebox': False,
             'name_style': 'random',
             'string_method': 'polymorphic',
             'intensity': 1,
@@ -104,6 +106,7 @@ class Obfuscator:
             'license_info', 'encryption_key', 'expiration_date',
             'allowed_machines', 'anti_debug', 'domain_lock',
             'enable_vm_detection', 'enable_network_check', 'license_server_url',
+            'use_whitebox',
         }
         protector_kwargs = {
             k: v for k, v in self.config.items()
@@ -167,6 +170,12 @@ class Obfuscator:
                 "integrity_transformer",
                 intensity=self.config.get('intensity'),
                 enable_honeypots=True
+            ))
+
+        if self.config.get('code_virtualization'):
+            pipeline.add_transformer(TransformerRegistry.create(
+                "vm_transformer",
+                intensity=self.config.get('intensity')
             ))
 
         if self.config.get('compress_code') and not self.config.get('encrypt_code') and not self.config.get('use_pyd_compilation'):

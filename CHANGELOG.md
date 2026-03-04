@@ -5,6 +5,26 @@ All notable changes to PyObfuscator will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.2] - 2026-03-04
+
+### 🛡️ Advanced Security Features
+- **Instruction-Level Virtualization**: Added a full AST-to-Bytecode compiler and custom Stack-based VM. Sensitive logic is now virtualized into proprietary instructions, making static analysis nearly impossible.
+- **Semantic Equivalence Fuzzing**: Integrated `hypothesis` for property-based testing. Automatically verifies that obfuscated code remains logically identical to the original across thousands of randomized AST permutations.
+- **Performance Benchmarking Suite**: Implemented a comprehensive high-fidelity research tool to measure execution latency, memory pressure, and code bloat across different security tiers.
+- **Behavioral Security Testing (BDD)**: Added `behave` integration to enforce security invariants (e.g., "secrets must not be grep-able") as first-class citizens in the CI pipeline.
+
+### ✨ Enhancements & Fixes
+- **Static VM Core**: Extracted a high-performance static VM from the polymorphic runtime for use in the core transformation engine.
+- **Binary Operation Hardening**: Fixed stack-ordering issues in VM arithmetic operations.
+- **32-Bit Memory Model**: Upgraded the VM memory from 8-bit bytes to a full 32-bit integer address space.
+
+## [2.0.1] - 2026-03-04
+
+### ✨ Enhancements & Fixes
+- **Control Flow Flattening**: Fully implemented state machine transformation (`ControlFlowFlattener`) for control flow obfuscation.
+- **Polymorphic String Engine**: Added structural diversity to string decoding logic (list comprehensions, generator expressions, map lambdas).
+- **Core Architecture**: Fixed missing transformer exports in `core/transformers/__init__.py` and removed stale developer comments in the compatibility layer.
+
 ## [2.0.0] - 2026-03-01
 
 ### 🎉 Major Release

@@ -12,6 +12,12 @@ The following improvements have been implemented:
 | Strategy Pattern for String Obfuscation | ✅ Done | `pyobfuscator/core/transformers/string_obfuscator.py` |
 | Factory Pattern for Name Generation     | ✅ Done | `pyobfuscator/core/name_generator.py`                 |
 | Builder Pattern for Configuration       | ✅ Done | `pyobfuscator/config/builder.py`                      |
+| Chain of Responsibility for Pipelines   | ✅ Done | `pyobfuscator/core/pipeline.py`                       |
+| Control Flow Flattening (CFF)           | ✅ Done | `pyobfuscator/core/transformers/control_flow.py`      |
+| Instruction-Level Virtualization       | ✅ Done | `pyobfuscator/core/transformers/virtual_machine.py`   |
+| Performance Benchmarking Suite         | ✅ Done | `benchmarks/performance_suite.py`                     |
+| Property-Based Testing (Fuzzing)       | ✅ Done | `tests/test_fuzzing.py`                               |
+| Behavioral Security Testing (BDD)      | ✅ Done | `features/obfuscation.feature`                        |
 | Configuration Presets                   | ✅ Done | `pyobfuscator/config/presets.py`                      |
 | Constants Module                        | ✅ Done | `pyobfuscator/constants.py`                           |
 | Protocols/Interfaces                    | ✅ Done | `pyobfuscator/protocols.py`                           |
@@ -334,19 +340,9 @@ tests/
     └── expected_outputs/
 ```
 
-### 15. **Add Property-Based Testing**
+### 15. **Add Property-Based Testing** ✅ Done
 
-```python
-from hypothesis import given, strategies as st
-
-
-class TestNameGenerator:
-    @given(st.text(min_size=1, alphabet=st.characters(whitelist_categories=('L',))))
-    def test_name_generation_always_valid_identifier(self, original):
-        gen = NameGenerator()
-        result = gen.get_name(original)
-        assert result.isidentifier()
-```
+Implemented using `hypothesis` in `tests/test_fuzzing.py`. Ensures semantic equivalence between original and obfuscated code across randomized mathematical ASTs.
 
 ---
 

@@ -39,10 +39,6 @@ class PolymorphicStrategy(StringObfuscationStrategy):
         return "polymorphic"
 
     def obfuscate(self, value: str, context: Optional[TransformationContext] = None) -> ast.Call:
-        # Note: A full polymorphic implementation would inject AST nodes for a new function
-        # into the module and return a Call to it. For brevity in this inline strategy, 
-        # we'll generate a unique XOR inline expression with random variable names.
-        
         key = random.randint(1, 255)
         encoded = bytes([b ^ key for b in value.encode('utf-8')])
         
@@ -53,29 +49,91 @@ class PolymorphicStrategy(StringObfuscationStrategy):
             
         var_b = f"{prefix}_{random.randint(1000, 9999)}"
         
+        strategy_choice = random.randint(0, 2)
+        
+        if strategy_choice == 0:
+            # bytes([v ^ key for v in encoded]).decode('utf-8')
+            decoding_expr = ast.Call(
+                func=ast.Name(id='bytes', ctx=ast.Load()),
+                args=[
+                    ast.ListComp(
+                        elt=ast.BinOp(
+                            left=ast.Name(id=var_b, ctx=ast.Load()),
+                            op=ast.BitXor(),
+                            right=ast.Constant(value=key)
+                        ),
+                        generators=[
+                            ast.comprehension(
+                                target=ast.Name(id=var_b, ctx=ast.Store()),
+                                iter=ast.Constant(value=encoded),
+                                ifs=[],
+                                is_async=0
+                            )
+                        ]
+                    )
+                ],
+                keywords=[]
+            )
+        elif strategy_choice == 1:
+            # ''.join(chr(v ^ key) for v in encoded)
+            return ast.Call(
+                func=ast.Attribute(
+                    value=ast.Constant(value=''),
+                    attr='join',
+                    ctx=ast.Load()
+                ),
+                args=[
+                    ast.GeneratorExp(
+                        elt=ast.Call(
+                            func=ast.Name(id='chr', ctx=ast.Load()),
+                            args=[
+                                ast.BinOp(
+                                    left=ast.Name(id=var_b, ctx=ast.Load()),
+                                    op=ast.BitXor(),
+                                    right=ast.Constant(value=key)
+                                )
+                            ],
+                            keywords=[]
+                        ),
+                        generators=[
+                            ast.comprehension(
+                                target=ast.Name(id=var_b, ctx=ast.Store()),
+                                iter=ast.Constant(value=encoded),
+                                ifs=[],
+                                is_async=0
+                            )
+                        ]
+                    )
+                ],
+                keywords=[]
+            )
+        else:
+            # bytes(map(lambda v: v ^ key, encoded)).decode('utf-8')
+            decoding_expr = ast.Call(
+                func=ast.Name(id='bytes', ctx=ast.Load()),
+                args=[
+                    ast.Call(
+                        func=ast.Name(id='map', ctx=ast.Load()),
+                        args=[
+                            ast.Lambda(
+                                args=ast.arguments(posonlyargs=[], args=[ast.arg(arg=var_b)], kwonlyargs=[], kw_defaults=[], defaults=[]),
+                                body=ast.BinOp(
+                                    left=ast.Name(id=var_b, ctx=ast.Load()),
+                                    op=ast.BitXor(),
+                                    right=ast.Constant(value=key)
+                                )
+                            ),
+                            ast.Constant(value=encoded)
+                        ],
+                        keywords=[]
+                    )
+                ],
+                keywords=[]
+            )
+
         return ast.Call(
             func=ast.Attribute(
-                value=ast.Call(
-                    func=ast.Name(id='bytes', ctx=ast.Load()),
-                    args=[
-                        ast.ListComp(
-                            elt=ast.BinOp(
-                                left=ast.Name(id=var_b, ctx=ast.Load()),
-                                op=ast.BitXor(),
-                                right=ast.Constant(value=key)
-                            ),
-                            generators=[
-                                ast.comprehension(
-                                    target=ast.Name(id=var_b, ctx=ast.Store()),
-                                    iter=ast.Constant(value=encoded),
-                                    ifs=[],
-                                    is_async=0
-                                )
-                            ]
-                        )
-                    ],
-                    keywords=[]
-                ),
+                value=decoding_expr,
                 attr='decode',
                 ctx=ast.Load()
             ),

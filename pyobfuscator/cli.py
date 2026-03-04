@@ -156,6 +156,8 @@ def _add_obfuscate_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--preserve-public', action='store_true')
     parser.add_argument('--control-flow', action='store_true')
     parser.add_argument('--control-flow-flatten', action='store_true')
+    parser.add_argument('--code-virtualization', action='store_true')
+    parser.add_argument('--whitebox', action='store_true')
     parser.add_argument('--numbers', action='store_true')
     parser.add_argument('--builtins', action='store_true')
     parser.add_argument('--integrity-check', action='store_true')
@@ -183,6 +185,8 @@ def _create_obfuscator(parsed: argparse.Namespace) -> Obfuscator:
     adv_config = {
         'control_flow': getattr(parsed, 'control_flow', False) or all_adv,
         'control_flow_flatten': getattr(parsed, 'control_flow_flatten', False) or all_adv,
+        'code_virtualization': getattr(parsed, 'code_virtualization', False) or all_adv,
+        'use_whitebox': getattr(parsed, 'whitebox', False) or all_adv,
         'number_obfuscation': getattr(parsed, 'numbers', False) or all_adv,
         'builtin_obfuscation': getattr(parsed, 'builtins', False) or all_adv,
         'integrity_checks': getattr(parsed, 'integrity_check', False) or all_adv,

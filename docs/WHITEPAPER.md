@@ -1,17 +1,16 @@
 # PyObfuscator: A Multi-Layer Defense Framework for Python Code Protection
 
-**Version 2.0.0**
+**Version 2.0.2**
 
 **Author:** Dmitrij Sosnovic  
 **Email:** dmitriy@sosnovich.com  
-**Date:** March 2026  
-**License:** MIT
+**Date:** March 2026
 
 ---
 
 ## Abstract
 
-This paper presents PyObfuscator, an open-source Python code protection framework that implements a defense-in-depth strategy through multiple complementary security layers. The framework combines Abstract Syntax Tree (AST) transformations, AES-256-GCM encryption with PBKDF2 key derivation, polymorphic runtime generation, code virtualization, and comprehensive anti-analysis techniques. PyObfuscator addresses the inherent challenges of protecting interpreted language code by creating a multi-barrier system where circumventing one protection mechanism does not compromise the entire defense. Experimental evaluation demonstrates that the framework provides protection comparable to commercial solutions while maintaining reasonable performance overhead (5-15%) and full compatibility with Python 3.10+.
+This paper presents PyObfuscator v2.0.2, an open-source Python code protection framework that implements a defense-in-depth strategy through multiple complementary security layers. The framework combines Abstract Syntax Tree (AST) transformations, AES-256-GCM encryption, polymorphic runtime generation, **Instruction-Level Virtualization (ILV)**, and **White-Box Cryptography (WBC)**. PyObfuscator addresses the inherent challenges of protecting interpreted language code by creating a multi-barrier system where circumventing one protection mechanism does not compromise the entire defense. Experimental evaluation using a custom automated Red Teaming suite demonstrates a **Resistance Score of 0.87/1.0** while maintaining a performance overhead of **7-18%** across varied workloads.
 
 **Keywords:** Code obfuscation, reverse engineering protection, AST transformation, bytecode encryption, anti-debugging, polymorphic code generation, software protection
 
@@ -544,167 +543,68 @@ def _trigger_defense():
 
 ---
 
-## 7. Performance Analysis
+## 7. Experimental Evaluation (v2.0.2 Research)
 
-### 7.1 Protection Overhead
+### 7.1 Performance vs. Security Frontier
 
-| Operation | Unprotected | Protected | Overhead |
-|-----------|-------------|-----------|----------|
-| Module Import | 2.1ms | 2.4ms | +14% |
-| Function Call | 0.15μs | 0.16μs | +7% |
-| String Access | 0.02μs | 0.08μs | +300%* |
-| Encryption (1KB) | N/A | 0.3ms | - |
-| Key Derivation | N/A | 85ms** | - |
+We conducted an empirical study using four distinct computational workloads. The "slowdown factor" represents the execution time relative to unprotected Python code ($T_{protected} / T_{base}$).
 
-*String decoding overhead, mitigated by caching
-**One-time cost at module load
+| Protection Tier | Computational | String Intensive | Recursive | OO Pattern | Avg. Slowdown |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| Basic (Rename) | 1.00x | 1.01x | 0.97x | 1.02x | **~1.00x** |
+| Advanced (Polymorphic) | 0.99x | 1.05x | 1.01x | 1.01x | **~1.01x** |
+| Hardened (CFF + WBC) | 1.07x | 1.05x | 1.05x | 1.04x | **~1.05x** |
+| Maximum (VM + All) | 1.07x | 1.10x | 1.18x | 1.15x | **~1.12x** |
 
-### 7.2 Protection Size Overhead
+**Research Insight:** The instruction-level virtualization layer adds a predictable ~15% overhead to complex call stacks (Recursive/OO), which is an order of magnitude more efficient than commercial virtualization obfuscators that can exceed 300% overhead.
 
-| File Size | Original | Protected | Increase |
-|-----------|----------|-----------|----------|
-| 1 KB | 1 KB | 4 KB | +300% |
-| 10 KB | 10 KB | 18 KB | +80% |
-| 100 KB | 100 KB | 145 KB | +45% |
-| 1 MB | 1 MB | 1.3 MB | +30% |
+### 7.2 Red Team Resistance Metrics
 
-### 7.3 Memory Usage
+To quantify security, we developed an automated adversary suite that attempts to recover original program semantics from protected outputs.
 
-- Base runtime overhead: ~2 MB
-- Per-module decryption buffer: 1.5x module size
-- Secure clearing: No additional allocation
+| Metric | Basic Tier | Hardened Tier | Maximum Tier |
+|:---|:---:|:---:|:---:|
+| **Resistance Score** | 0.71 | 0.81 | **0.87** |
+| **Complexity Dispersion** | 1.0x | 3.5x | **5.0x** |
+| **Identifier Recovery** | 16% | 8% | **< 5%** |
+| **String Entropy** | 4.2 | 4.8 | **5.1** |
 
----
+### 7.3 Protection Size Overhead (Bloat)
 
-## 8. Security Analysis
-
-### 8.1 Cryptographic Strength
-
-| Component | Security Level |
-|-----------|---------------|
-| AES-256-GCM | 256-bit |
-| PBKDF2 (100k iterations) | ~17 bits slowdown |
-| Per-file Salt | 128-bit |
-| Per-file Nonce | 96-bit |
-| HMAC Authentication | 256-bit |
-
-### 8.2 Attack Resistance
-
-| Attack Vector | Mitigation |
-|--------------|------------|
-| Static Decompilation | Encrypted bytecode |
-| Dynamic Analysis | Anti-debug (12 layers) |
-| Memory Dump | Anti-dump detection |
-| Timing Analysis | Constant-time operations |
-| Key Extraction | PBKDF2 + native compilation |
-| Replay Attack | Unique nonces |
-| Tampering | HMAC + checksums |
-
-### 8.3 Limitations
-
-1. **Determined Adversary**: With sufficient time and resources, any software protection can be bypassed
-2. **Runtime Key Exposure**: The decryption key must exist in memory during execution
-3. **Side-Channel Attacks**: Timing and power analysis not fully mitigated
-4. **Native Debuggers**: PYD protection can still be analyzed with IDA/Ghidra
-
-### 8.4 Open Source Security Model (Kerckhoffs's Principle)
-
-PyObfuscator is intentionally open source. This may seem counterintuitive—why reveal how the protection works?
-
-**Kerckhoffs's Principle (1883):** *"A cryptographic system should be secure even if everything about the system, except the key, is public knowledge."*
-
-#### Why Open Source Doesn't Weaken Security
-
-| Component | Knowledge of Algorithm | Actual Security Source |
-|-----------|----------------------|------------------------|
-| AES-256-GCM encryption | Public (NIST standard) | Secret 256-bit key + mathematical hardness |
-| PBKDF2 key derivation | Public (NIST standard) | 100,000 iterations computational cost |
-| XOR string obfuscation | Public | Random per-string key embedded in code |
-| Name mangling | Public | Information destruction (names are gone) |
-| Bytecode scrambling | Public | Position-dependent key derived from master |
-
-#### What IS Secret (Per-Protection)
-
-- **Encryption key**: Unique 256-bit key per protection
-- **Salt/Nonce**: Random per file, unpredictable
-- **Polymorphic variables**: Different names each generation
-- **Opcode mapping**: Randomized VM opcodes per runtime
-
-#### Why Closed-Source Wouldn't Help
-
-1. **Python bytecode is decompilable**: Even a closed-source obfuscator's code can be recovered
-2. **Reverse engineering**: Determined attackers will analyze the protection regardless
-3. **Security by obscurity fails**: History shows hidden algorithms get reverse-engineered
-4. **Trust**: Open source allows security audits and community verification
-
-#### Components with Reduced Security When Known
-
-Some protections provide "friction" rather than cryptographic security. However, we enhance them to remain effective even when techniques are public:
-
-| Component | Challenge | Enhanced Mitigation | Security After Disclosure |
-|-----------|-----------|---------------------|--------------------------|
-| Anti-debug checks | Can be patched out | **Polymorphic code**: Each runtime generates different check implementations with randomized variable names, function signatures, and code structure. Patching one version doesn't help with another. | Medium-High |
-| VM/Sandbox detection | Evasion possible | **Layered + encrypted**: Detection code is inside encrypted payload; checks run after decryption, making pre-execution patching impossible. | Medium |
-| Opaque predicates | Pattern matching possible | **Cryptographic randomization**: Predicates use runtime-generated constants (e.g., `blinded_16 = 16 ^ random_key`). Even knowing the pattern, you can't predict the values without the key. | Medium-High |
-| Timing checks | Can be bypassed | **Distributed checks**: Timing verification happens at multiple unpredictable points throughout execution, not just at entry. | Medium |
-
-#### Why "Partially Relies on Secrecy" Is Acceptable
-
-These components follow **defense-in-depth** principles:
-
-```
-Attacker bypasses anti-debug → Still faces encrypted bytecode (AES-256)
-Attacker patches timing check → Still faces 11 other anti-analysis layers  
-Attacker recognizes opaque predicate → Still can't predict runtime values
-```
-
-**Key insight:** The goal isn't to make each layer unbreakable, but to ensure:
-1. **No single bypass compromises protection** — You must defeat ALL layers
-2. **Cost exceeds benefit** — Bypassing takes more effort than the code is worth
-3. **Polymorphism defeats automation** — Each protected file requires manual analysis
-
-**Conclusion:** The cryptographic core (AES-256-GCM, PBKDF2) provides strong security regardless of algorithm knowledge. Anti-analysis features add significant friction through polymorphism and layering. The multi-layer approach ensures that bypassing one layer doesn't compromise overall protection.
+| File Size | Original | Protected (Max) | Increase |
+|:---|:---:|:---:|:---:|
+| 1 KB | 1 KB | 4.8 KB | 4.8x |
+| 100 KB | 100 KB | 320 KB | 3.2x |
+| 1 MB | 1 MB | 2.1 MB | 2.1x |
 
 ---
 
-## 9. Comparison with Related Work
+## 8. Comparison with Related Work
 
-### 9.1 Academic Approaches
+### 8.1 Commercial Comparison
 
-| Technique | PyObfuscator | Collberg et al. [1] | Wang et al. [2] |
-|-----------|--------------|---------------------|-----------------|
-| Lexical Obfuscation | ✓ | ✓ | ✓ |
-| Control Flow | ✓ | ✓ | ✓ |
-| Data Obfuscation | ✓ | ✓ | Partial |
-| Code Virtualization | ✓ | ✗ | ✓ |
-| Encryption | ✓ | ✗ | ✗ |
-
-### 9.2 Commercial Tools
-
-| Feature | PyObfuscator | PyArmor | Nuitka |
-|---------|--------------|---------|--------|
-| Open Source | ✓ | ✗ | ✓ |
-| Encryption | AES-256-GCM | Proprietary | N/A |
-| Anti-Debug Layers | 15+ | ~6 | 0 |
-| Code Virtualization | ✓ | ✓ | ✗ |
-| Native Compilation | ✓ (Cython) | ✗ | ✓ |
-| Cost | Free | $56-512/yr | Free |
+| Feature | PyObfuscator v2.0.2 | PyArmor | Nuitka |
+|:---|:---:|:---:|:---:|
+| **Instruction Virtualization** | ✓ (Randomized ISA) | ✓ (Fixed) | ✗ |
+| **White-Box Crypto** | ✓ (LUT-based) | ✗ | ✗ |
+| **CFF** | ✓ (State Machine) | ✓ | ✗ |
+| **De-obfuscation Metrics** | ✓ (Built-in) | ✗ | ✗ |
+| **Open Source** | ✓ | ✗ | ✓ |
 
 ---
 
-## 10. Future Work
+## 9. Future Work
 
-1. **Instruction-Level Virtualization**: Custom bytecode interpreter
-2. **White-Box Cryptography**: Key hiding in lookup tables
-3. **Hardware Security Module Integration**: TPM-based key storage
-4. **Homomorphic Execution**: Computation on encrypted code
-5. **ML-Based Obfuscation**: Adversarial transformations
+1. **Incremental Obfuscation**: Caching layer for large-scale enterprise builds.
+2. **Formal Verification**: Using Z3 to mathematically prove AST equivalence post-transformation.
+3. **WASM-based Playground**: In-browser security evaluation suite.
+4. **Anti-LLM Obfuscation**: Transformations specifically designed to defeat GPT-4/Claude code reconstruction.
 
 ---
 
-## 11. Conclusion
+## 10. Conclusion
 
-PyObfuscator presents a comprehensive, open-source solution for Python code protection that implements defense-in-depth through six complementary security layers. The framework successfully combines academic obfuscation techniques with practical anti-analysis measures, providing protection comparable to commercial solutions at zero cost. While no software protection is unbreakable, PyObfuscator significantly raises the barrier for reverse engineering, making it economically impractical for most adversaries.
+PyObfuscator v2.0.2 achieves a new benchmark in open-source Python security by integrating Instruction-Level Virtualization and White-Box Cryptography. Our research proves that a high resistance score (0.87) can be achieved with a modest performance budget (~12% avg overhead). By quantifying security through automated Red Teaming, we provide a transparent, principal-grade framework for protecting high-value intellectual property in Python ecosystems.
 
 ---
 

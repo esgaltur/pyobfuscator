@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Shared Cryptographic Engine for PyObfuscator.
-
-Provides AES-256-GCM encryption with PBKDF2 key derivation.
-Falls back to a stream cipher with HMAC if cryptography library is not available.
+Cryptographic Engine Package for PyObfuscator.
 """
 
 import hashlib
@@ -16,7 +13,8 @@ import sys
 import uuid
 from typing import List
 
-from .constants import CryptoConstants
+# Import from parent constants
+from ..constants import CryptoConstants
 
 # Try to use cryptography library for AES
 try:
@@ -165,3 +163,5 @@ def get_machine_id() -> str:
     # Create hash
     combined = '|'.join(machine_info)
     return hashlib.sha256(combined.encode()).hexdigest()[:32]
+
+from .whitebox import WhiteBoxEngine, WhiteBoxAES

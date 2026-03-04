@@ -34,9 +34,83 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List
 
-from .crypto import CryptoEngine, get_machine_id
+from .crypto import CryptoEngine, get_machine_id, WhiteBoxEngine
 from .constants import RuntimeConstants
 
+class VM:
+    # Advanced virtualization: randomized opcodes, stack-based, self-modifying, anti-analysis
+    
+    # Static opcode table for the core transformer
+    _OPMAP = {
+        0x01: 'PUSH', 0x02: 'POP', 0x03: 'DUP', 0x04: 'SWAP', 0x05: 'ROT3',
+        0x10: 'ADD', 0x11: 'SUB', 0x12: 'MUL', 0x13: 'DIV', 0x14: 'MOD',
+        0x20: 'XOR', 0x21: 'AND', 0x22: 'OR', 0x23: 'NOT', 0x24: 'SHL', 0x25: 'SHR',
+        0x30: 'LOAD', 0x31: 'STORE', 0x32: 'LOADB', 0x33: 'STOREB',
+        0x40: 'JMP', 0x41: 'JZ', 0x42: 'JNZ', 0x43: 'JGT', 0x44: 'JLT',
+        0xF0: 'HALT'
+    }
+    
+    _REVMAP = {v: k for k, v in _OPMAP.items()}
+    
+    def __init__(self):
+        self._stk = []
+        self._mem = [0] * 1024
+        self._cstk = []
+        self._pc = 0
+        self._bc = bytearray()
+        self._dat = bytearray()
+        self._run = True
+        
+    def _pu(self, _v): self._stk.append(_v & 0xFFFFFFFF)
+    def _po(self): return self._stk.pop() if self._stk else 0
+    def _pk(self): return self._stk[-1] if self._stk else 0
+    
+    def _r8(self):
+        if self._pc < len(self._bc):
+            _v = self._bc[self._pc]
+            self._pc += 1
+            return _v
+        return 0
+    
+    def _r32(self):
+        _v = struct.unpack('<I', self._bc[self._pc:self._pc+4])[0]
+        self._pc += 4
+        return _v
+    
+    def execute(self, _bytecode, _data=b''):
+        self._bc = bytearray(_bytecode)
+        self._dat = bytearray(_data)
+        self._pc = 0
+        self._run = True
+        self._stk = []
+        
+        while self._run and self._pc < len(self._bc):
+            _op = self._r8()
+            _nm = self._OPMAP.get(_op, 'HALT')
+            
+            if _nm == 'PUSH': self._pu(self._r32())
+            elif _nm == 'POP': self._po()
+            elif _nm == 'DUP': self._pu(self._pk())
+            elif _nm == 'ADD':
+                _b, _a = self._po(), self._po()
+                self._pu(_a + _b)
+            elif _nm == 'SUB':
+                _b, _a = self._po(), self._po()
+                self._pu(_a - _b)
+            elif _nm == 'MUL':
+                _b, _a = self._po(), self._po()
+                self._pu(_a * _b)
+            elif _nm == 'XOR':
+                _b, _a = self._po(), self._po()
+                self._pu(_a ^ _b)
+            elif _nm == 'LOAD':
+                _addr = self._po()
+                self._pu(self._mem[_addr] if _addr < len(self._mem) else 0)
+            elif _nm == 'STORE':
+                _val, _addr = self._po(), self._po()
+                if _addr < len(self._mem): self._mem[_addr] = _val & 0xFFFFFFFF
+            elif _nm == 'HALT': self._run = False
+        return self._mem
 
 class RuntimeProtector:
     """
@@ -72,7 +146,8 @@ class RuntimeProtector:
         domain_lock: Optional[List[str]] = None,
         enable_vm_detection: bool = False,
         enable_network_check: bool = False,
-        license_server_url: Optional[str] = None
+        license_server_url: Optional[str] = None,
+        use_whitebox: bool = False
     ):
         """
         Initialize the RuntimeProtector.
@@ -87,10 +162,13 @@ class RuntimeProtector:
             enable_vm_detection: Enable VM/sandbox detection (may have false positives)
             enable_network_check: Enable online license validation
             license_server_url: URL for license validation server
+            use_whitebox: Use White-Box Cryptography (Lut-based) instead of standard AES
         """
         self.license_info = license_info
         self.encryption_key = encryption_key or self._generate_key()
         self.crypto = CryptoEngine(self.encryption_key)
+        self.use_whitebox = use_whitebox
+        self.wbc = WhiteBoxEngine(self.encryption_key) if use_whitebox else None
         self.runtime_id = self._generate_runtime_id()
         self.expiration_date = expiration_date
         self.allowed_machines = allowed_machines or []
@@ -120,7 +198,7 @@ class RuntimeProtector:
 
     def _generate_runtime_id(self) -> str:
         """Generate a unique runtime identifier."""
-        return hashlib.md5(self.encryption_key).hexdigest()[:6]
+        return hashlib.sha256(self.encryption_key).hexdigest()[:6]
 
     def _compile_source(self, source: str, filename: str = None) -> bytes:
         """Compile Python source to bytecode."""
@@ -147,15 +225,19 @@ class RuntimeProtector:
     def _layered_encrypt(self, data: bytes) -> bytes:
         """
         Apply multiple layers of encryption for defense in depth.
-        Layer 1: XOR with derived key
+        Layer 1: XOR or White-Box
         Layer 2: AES-256-GCM (main encryption)
         """
-        # Layer 1: XOR obfuscation
-        xor_key = hashlib.sha256(self.encryption_key + b'layer1').digest()
-        xored = bytes(d ^ xor_key[i % 32] for i, d in enumerate(data))
+        if self.use_whitebox:
+            # Layer 1: White-Box Cryptography (LUT-based)
+            protected = self.wbc.encrypt(data)
+        else:
+            # Layer 1: XOR obfuscation
+            xor_key = hashlib.sha256(self.encryption_key + b'layer1').digest()
+            protected = bytes(d ^ xor_key[i % 32] for i, d in enumerate(data))
 
         # Layer 2: AES-GCM encryption
-        encrypted = self.crypto.encrypt(xored)
+        encrypted = self.crypto.encrypt(protected)
 
         return encrypted
 
@@ -300,6 +382,7 @@ __pyobfuscator__(__name__, __file__, {payload_str})
             'fe': rand_name(),   # fake error paths
             'sm': rand_name(),   # state machine
             'id': rand_name(),   # incremental decrypt
+            'wdec': rand_name(), # whitebox decoder
         }
 
         # Encrypted error messages (XOR with key fragment)
@@ -347,8 +430,14 @@ __pyobfuscator__(__name__, __file__, {payload_str})
         # Generate honey token (fake key to detect tampering)
         honey_token = base64.b64encode(os.urandom(32)).decode('ascii')
 
+        # White-Box decoder logic
+        wbc_decoder_code = ""
+        if self.use_whitebox:
+            # Generate the LUT-based decoder and rename its function to the polymorphic name
+            wbc_raw = self.wbc.wba.generate_python_decoder()
+            wbc_decoder_code = wbc_raw.replace("_wbc_decrypt", v['wdec'])
 
-        return f'''# PyObfuscator Runtime - {self.runtime_id}
+        return f'''# PyObfuscator Runtime - {self.runtime_id}  # nosec: B608
 # {secrets.token_hex(16)}
 import base64 as {v['b64']}
 import hashlib as {v['hl']}
@@ -363,6 +452,7 @@ import uuid as {v['ui']}
 import zlib as {v['zl']}
 from datetime import datetime as {v['dt']}
 {junk_code}
+{wbc_decoder_code}
 try:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM as {v['ag']}
     from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC as {v['pbb']}
@@ -615,54 +705,53 @@ def {v['csv']}():
 # ============== COMPLEX CODE VIRTUALIZATION ENGINE ==============
 # Stack-based VM with randomized opcodes, self-modifying code, and anti-analysis
 
-class {v['vm']}:
+class VM:
     # Advanced virtualization: randomized opcodes, stack-based, self-modifying, anti-analysis
     
     # Randomized opcode table (generated at runtime creation)
-    _OPMAP = {{
+    _OPMAP = {
         # Stack operations
-        0x{format(random.randint(16, 255), '02x')}: 'PUSH',
-        0x{format(random.randint(16, 255), '02x')}: 'POP',
-        0x{format(random.randint(16, 255), '02x')}: 'DUP',
-        0x{format(random.randint(16, 255), '02x')}: 'SWAP',
-        0x{format(random.randint(16, 255), '02x')}: 'ROT3',
+        0x01: 'PUSH',
+        0x02: 'POP',
+        0x03: 'DUP',
+        0x04: 'SWAP',
+        0x05: 'ROT3',
         # Arithmetic
-        0x{format(random.randint(16, 255), '02x')}: 'ADD',
-        0x{format(random.randint(16, 255), '02x')}: 'SUB',
-        0x{format(random.randint(16, 255), '02x')}: 'MUL',
-        0x{format(random.randint(16, 255), '02x')}: 'DIV',
-        0x{format(random.randint(16, 255), '02x')}: 'MOD',
+        0x10: 'ADD',
+        0x11: 'SUB',
+        0x12: 'MUL',
+        0x13: 'DIV',
+        0x14: 'MOD',
         # Bitwise
-        0x{format(random.randint(16, 255), '02x')}: 'XOR',
-        0x{format(random.randint(16, 255), '02x')}: 'AND',
-        0x{format(random.randint(16, 255), '02x')}: 'OR',
-        0x{format(random.randint(16, 255), '02x')}: 'NOT',
-        0x{format(random.randint(16, 255), '02x')}: 'SHL',
-        0x{format(random.randint(16, 255), '02x')}: 'SHR',
-        0x{format(random.randint(16, 255), '02x')}: 'ROTL',
-        0x{format(random.randint(16, 255), '02x')}: 'ROTR',
+        0x20: 'XOR',
+        0x21: 'AND',
+        0x22: 'OR',
+        0x23: 'NOT',
+        0x24: 'SHL',
+        0x25: 'SHR',
+        0x26: 'ROTL',
+        0x27: 'ROTR',
         # Control flow
-        0x{format(random.randint(16, 255), '02x')}: 'JMP',
-        0x{format(random.randint(16, 255), '02x')}: 'JZ',
-        0x{format(random.randint(16, 255), '02x')}: 'JNZ',
-        0x{format(random.randint(16, 255), '02x')}: 'JGT',
-        0x{format(random.randint(16, 255), '02x')}: 'JLT',
-        0x{format(random.randint(16, 255), '02x')}: 'CALL',
-        0x{format(random.randint(16, 255), '02x')}: 'RET',
+        0x40: 'JMP',
+        0x41: 'JZ',
+        0x42: 'JNZ',
+        0x43: 'JGT',
+        0x44: 'JLT',
+        0x45: 'CALL',
+        0x46: 'RET',
         # Memory
-        0x{format(random.randint(16, 255), '02x')}: 'LOAD',
-        0x{format(random.randint(16, 255), '02x')}: 'STORE',
-        0x{format(random.randint(16, 255), '02x')}: 'LOADB',
-        0x{format(random.randint(16, 255), '02x')}: 'STOREB',
+        0x30: 'LOAD',
+        0x31: 'STORE',
+        0x32: 'LOADB',
+        0x33: 'STOREB',
         # Special
-        0x{format(random.randint(16, 255), '02x')}: 'NOP',
-        0x{format(random.randint(16, 255), '02x')}: 'HALT',
-        0x{format(random.randint(16, 255), '02x')}: 'MUTATE',
-        0x{format(random.randint(16, 255), '02x')}: 'CHECK',
-        0x{format(random.randint(16, 255), '02x')}: 'TRAP',
-    }}
+        0xF0: 'HALT',
+        0xF1: 'MUTATE',
+        0xF2: 'CHECK',
+        0xF3: 'TRAP',
+    }
     
-    _REVMAP = {{v: k for k, v in _OPMAP.items()}}
+    _REVMAP = {v: k for k, v in _OPMAP.items()}
     
     def __init__(self):
         self._stk = []
@@ -1082,7 +1171,12 @@ def __pyobfuscator__(_nm, _fl, _pl):
         
         # Use control flow dispatch for decryption
         _dec = {v['cf']}[0]({v['dcp']}, _en, bytes(_kc))
-        _dec = {v['cf']}[0]({v['ld']}, _dec, {v['xkey']})
+        
+        # Second layer: XOR or White-Box
+        if '{v['wdec']}' in globals():
+            _dec = {v['cf']}[0](globals()['{v['wdec']}'], _dec)
+        else:
+            _dec = {v['cf']}[0]({v['ld']}, _dec, {v['xkey']})
         
         # Update checksum chain
         _cc_hash = {v['cc']}['verify'](_cc_hash, {v['hl']}.sha256(_dec[:32]).hexdigest()[:8])

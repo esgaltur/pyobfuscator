@@ -64,7 +64,7 @@ class HashNameStrategy(NameGenerationStrategy):
     """Generates hash-based names from the original identifier."""
 
     def generate(self, original: str, prefix: str, counter: int, used_names: Set[str]) -> str:
-        h = hashlib.md5(original.encode()).hexdigest()[:8]
+        h = hashlib.sha256(original.encode()).hexdigest()[:8]
         name = f"{prefix}{h}"
         if name in used_names:
             name = f"{name}_{counter}"

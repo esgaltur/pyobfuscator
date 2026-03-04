@@ -47,7 +47,7 @@ class NameGenerator:
         return name
 
     def _generate_hash_name(self, original: str) -> str:
-        h = hashlib.md5(original.encode()).hexdigest()[:8]
+        h = hashlib.sha256(original.encode()).hexdigest()[:8]
         name = f"{self.prefix}{h}"
         if name in self._used_names:
             name = f"{name}_{self.counter}"
