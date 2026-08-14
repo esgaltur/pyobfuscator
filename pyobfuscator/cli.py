@@ -214,6 +214,15 @@ class DirectoryObfuscationWorkflow:
         return DirectoryProcessingResult(files, self._output_path, encrypted)
 
     def _protect_directory(self) -> Mapping[str, str]:
+        if self._uses_rust_backend():
+            from .runtime_backends import RustRuntimeBackend
+
+            return RustRuntimeBackend(self._obfuscator).protect_directory(
+                self._input_path,
+                self._output_path,
+                recursive=self._options.recursive,
+                exclude_patterns=self._options.exclude_patterns,
+            )["files"]
         backend = self._native_backend() if self._uses_pyd_backend() else self._obfuscator
         result = backend.protect_directory(
             self._input_path,
@@ -233,6 +242,9 @@ class DirectoryObfuscationWorkflow:
 
     def _uses_pyd_backend(self) -> bool:
         return bool(self._obfuscator.config.get('use_pyd_compilation'))
+
+    def _uses_rust_backend(self) -> bool:
+        return self._obfuscator.config.get('runtime_backend') == 'rust'
 
     def _native_backend(self) -> Any:
         return self._obfuscator.runtime_protector
@@ -337,7 +349,16 @@ def _add_obfuscate_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--numbers', action='store_true')
     parser.add_argument('--builtins', action='store_true')
     parser.add_argument('--integrity-check', action='store_true')
-    parser.add_argument('--pyd', action='store_true')
+    parser.add_argument(
+        '--pyd',
+        action='store_true',
+        help='Deprecated alias for --runtime cython',
+    )
+    parser.add_argument(
+        '--runtime',
+        choices=['python', 'cython', 'rust'],
+        help='Runtime backend (default: python; rust requires the rust extra and toolchain)',
+    )
     parser.add_argument('--all-advanced', action='store_true')
     parser.add_argument('--intensity', type=int, choices=[1, 2, 3], default=1)
     parser.add_argument('--config', type=str)
@@ -377,10 +398,12 @@ def _create_obfuscator(parsed: argparse.Namespace) -> Obfuscator:
     # Handle machine binding
     allowed_machines = [get_machine_id()] if getattr(parsed, 'bind_machine', False) else None
 
+    runtime_backend = _resolve_runtime_backend(parsed)
     return Obfuscator(
         config={
             'encrypt_code': not getattr(parsed, 'no_encrypt', False),
-            'use_pyd_compilation': getattr(parsed, 'pyd', False),
+            'runtime_backend': runtime_backend,
+            'use_pyd_compilation': runtime_backend == 'cython',
             'anti_debug': not getattr(parsed, 'no_anti_debug', False),
             'license_info': getattr(parsed, 'license_info', DEFAULT_LICENSE),
             'expiration_date': expiration_date,
@@ -429,6 +452,15 @@ def _obfuscate_single_file(
         print(f"{msg} {input_path}...")
 
     if obfuscator.config.get('encrypt_code'):
+        if obfuscator.config.get('runtime_backend') == 'rust':
+            from .runtime_backends import RustRuntimeBackend
+
+            build = RustRuntimeBackend(obfuscator).protect_file(input_path, target_path)
+            if verbose:
+                print(f"Output written to {target_path}")
+                print(f"Runtime module: {build.extension_path}")
+            print("Protection complete! (Rust native runtime, AES-256-GCM)")
+            return 0
         # Apply full protection: obfuscation + encryption
         source = input_path.read_text(encoding='utf-8')
         protected, runtime = obfuscator.protect_source(source, str(input_path.name))
@@ -500,6 +532,7 @@ def _merge_config(parsed: argparse.Namespace, config: Dict[str, Any]) -> argpars
         'no_rename_classes': 'no_rename_classes',
         'no_string_obfuscation': 'no_string_obfuscation',
         'verbose': 'verbose',
+        'runtime': 'runtime',
     }
 
     for config_key, attr_name in config_mapping.items():
@@ -602,9 +635,9 @@ def _handle_obfuscate(parsed: argparse.Namespace) -> int:
         print(f"Error: Input path does not exist: {input_path}", file=sys.stderr)
         return 1
 
-    obfuscator = _create_obfuscator(parsed)
-
     try:
+        _validate_runtime_selection(parsed)
+        obfuscator = _create_obfuscator(parsed)
         if input_path.is_file():
             return _obfuscate_single_file(obfuscator, input_path, output_path, parsed.verbose)
         if input_path.is_dir():
@@ -614,6 +647,32 @@ def _handle_obfuscate(parsed: argparse.Namespace) -> int:
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
+
+
+def _resolve_runtime_backend(parsed: argparse.Namespace) -> str:
+    runtime = getattr(parsed, 'runtime', None)
+    if getattr(parsed, 'pyd', False):
+        if runtime not in (None, 'cython'):
+            raise ValueError("--pyd cannot be combined with a conflicting --runtime value")
+        return 'cython'
+    return runtime or 'python'
+
+
+def _validate_runtime_selection(parsed: argparse.Namespace) -> None:
+    runtime = _resolve_runtime_backend(parsed)
+    if getattr(parsed, 'no_encrypt', False) and runtime != 'python':
+        raise ValueError(f"--runtime {runtime} cannot be combined with --no-encrypt")
+    if runtime != 'rust':
+        return
+    unsupported = []
+    if getattr(parsed, 'expire_days', None):
+        unsupported.append('--expire-days')
+    if getattr(parsed, 'bind_machine', False):
+        unsupported.append('--bind-machine')
+    if unsupported:
+        raise ValueError(
+            "Rust runtime does not yet support " + ", ".join(unsupported)
+        )
 
 
 def _get_merged_config(parsed: argparse.Namespace) -> Optional[Dict[str, Any]]:

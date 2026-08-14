@@ -2,13 +2,22 @@
 
 ## Status
 
-**Decision: approved for staged implementation. Implementation has not started.**
+**Decision: approved. The Windows/CPython 3.12 proof of concept is implemented;
+the Rust backend remains experimental while the wider release gates are open.**
 
 Skjol will first build a bounded Windows/CPython 3.12 proof of concept. The
 native runtime will become a supported opt-in backend only after it passes the
 correctness, attack-resistance, cleanup, and packaging gates in this document.
 Native code must not be described as making local software impossible to
 inspect.
+
+The implemented path now builds a locked PyO3 crate through Maturin, emits a
+version-specific native extension, and executes authenticated artifacts without
+calling Python-level `eval`, `exec`, or `marshal.loads`. Single-file and nested
+directory CLI tests pass. One focused adversarial trial recorded zero protected
+code-object captures and zero canary recoveries through those Python hooks.
+That result is narrower than the planned 18-artifact evaluation and does not
+cover native process attacks.
 
 The current portable Python runtime will remain available for users who value
 simple packaging and broad compatibility. The existing Cython `--pyd` path
@@ -184,6 +193,126 @@ identifier, nonce, authenticated metadata, payload length, and integrity or
 signature data. Metadata must use a strict binary or structured format; it must
 not be interpreted with `eval`.
 
+## How the native workflow operates
+
+The native backend is selected explicitly. The portable Python runtime remains
+the default, and native build failure never changes the selected backend or
+emits a portable runtime as a fallback.
+
+### Protection and native build sequence
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CLI as Skjol CLI
+    participant Transform as Python transformation pipeline
+    participant Artifact as Native artifact builder
+    participant Backend as Rust runtime backend
+    participant Maturin
+    participant Cargo
+    participant Output as Staged output
+
+    User->>CLI: skjol obfuscate --runtime rust
+    CLI->>CLI: Validate flags and unsupported policies
+    CLI->>Transform: Transform selected Python source
+    Transform-->>CLI: Obfuscated source
+    CLI->>Artifact: Compile and marshal source
+    Artifact->>Artifact: Compress code object
+    Artifact->>Artifact: Generate artifact ID and nonce
+    Artifact->>Artifact: HKDF(root key, artifact ID)
+    Artifact->>Artifact: AES-256-GCM encrypt with header as AAD
+    Artifact-->>Backend: Launcher and SKJNR001 payload
+    Backend->>Backend: Copy reviewed Rust crate to temporary directory
+    Backend->>Backend: Generate module wrapper and temporary root-key module
+    Backend->>Maturin: Build version-specific release wheel
+    Maturin->>Cargo: Compile locked PyO3 crate
+    Cargo-->>Maturin: Native extension
+    Maturin-->>Backend: Tagged Python wheel
+    Backend->>Backend: Extract expected .pyd or .so only
+    Backend->>Output: Write launcher and native extension
+    Backend-->>CLI: Runtime path, wheel name, and Python tag
+    CLI-->>User: Protection completed
+```
+
+For a directory, Skjol generates one random build root key and one native
+extension, then creates a unique artifact ID, nonce, and derived AES key for
+each protected Python file. The same native extension is placed beside every
+directly runnable protected file. Generated Rust source, Cargo output, wheels,
+and the temporary root-key module are deleted when the build scope exits.
+
+### Protected-program execution sequence
+
+```mermaid
+sequenceDiagram
+    actor Program as Protected launcher
+    participant Rust as Rust .pyd/.so
+    participant Parser as Envelope parser
+    participant Crypto as Native crypto
+    participant Policy as Metadata policy
+    participant CPython as CPython C API
+    participant Module as Caller module dictionary
+
+    Program->>Rust: run(__name__, __file__, encrypted payload)
+    Rust->>Parser: Decode Base64 and parse SKJNR001
+    Parser->>Parser: Validate magic, version, flags, lengths, and Python tag
+    Parser-->>Rust: Header, artifact ID, nonce, and ciphertext
+    Rust->>Crypto: HKDF(root key, artifact ID)
+    Crypto->>Crypto: Authenticate header and decrypt AES-256-GCM payload
+    Crypto-->>Rust: Short-lived plaintext buffer
+    Rust->>Policy: Parse strict JSON metadata
+    Policy->>Policy: Enforce supported runtime policy
+    Policy-->>Rust: Allowed or explicit failure
+    Rust->>Rust: Decompress marshalled code into zeroized buffer
+    Rust->>CPython: PyMarshal_ReadObjectFromString
+    CPython-->>Rust: Python code object
+    Rust->>Module: Obtain existing module globals
+    Rust->>CPython: PyEval_EvalCode(code, globals, globals)
+    CPython-->>Program: Normal result or Python exception
+    Rust->>Rust: Clear derived key and plaintext buffers
+```
+
+The Rust extension does not call Python-level `marshal.loads`, `eval`, or
+`exec`, and it does not return plaintext bytes or the decoded code object to
+the launcher. CPython still owns the executing code object, so a native
+debugger or process-memory tool can observe it. The native runtime removes the
+measured Python-hook boundary; it does not create a trusted client machine.
+
+### Failure and no-fallback sequence
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant CLI as Skjol CLI
+    participant Backend as Rust backend
+    participant Build as Maturin/Cargo
+    participant Stage as Temporary staging
+    participant Output as Requested output
+
+    User->>CLI: Request --runtime rust
+    CLI->>CLI: Validate option combinations
+    alt Unsupported option or missing prerequisite
+        CLI-->>User: Non-zero exit with actionable error
+    else Valid request
+        CLI->>Backend: Start native protection
+        Backend->>Stage: Create payload and temporary crate
+        Backend->>Build: Compile native extension
+        alt Build or wheel validation fails
+            Build-->>Backend: Failure diagnostic
+            Backend->>Stage: Remove temporary source, key, wheel, and target
+            Backend-->>CLI: Native build failure
+            CLI-->>User: Non-zero exit with no portable fallback
+        else Native build succeeds
+            Backend->>Output: Publish native launcher and extension
+            Backend-->>CLI: Success
+            CLI-->>User: Zero exit
+        end
+    end
+```
+
+The initial backend accepts default anti-debug policy. Expiration, machine
+binding, domain locking, white-box payload encryption, and code virtualization
+are rejected explicitly until their native behavior is implemented and tested.
+
 Suggested Rust components for a proof of concept are:
 
 - `pyo3` for the Python extension boundary;
@@ -260,7 +389,7 @@ ciphertext.
 
 ## Repository structure
 
-The implementation should use the following boundaries:
+The proof of concept uses the following boundaries:
 
 ```text
 pyobfuscator/
@@ -270,9 +399,7 @@ pyobfuscator/
 |   `-- native_builder.py      # Compile, compress, derive key, encrypt
 |-- runtime_backends/
 |   |-- __init__.py
-|   |-- protocol.py            # RuntimeBackend contract and result model
-|   |-- portable.py            # Adapter around RuntimeProtector
-|   |-- cython.py              # Adapter around PydRuntimeProtector
+|   |-- protocol.py            # Native build result model
 |   `-- rust.py                # Temporary crate, Maturin, artifact staging
 `-- _native/
     `-- skjol_runtime/
@@ -282,7 +409,6 @@ pyobfuscator/
             |-- artifact.rs    # Length-safe envelope parser
             |-- crypto.rs      # HKDF and AES-GCM
             |-- metadata.rs    # Strict policy schema and validation
-            |-- policy.rs      # Expiration/machine/domain/debug decisions
             |-- cpython.rs     # Isolated unsafe CPython FFI
             |-- runtime.rs     # Orchestration with cleanup
             `-- lib.rs         # PyO3 entry point template
@@ -295,19 +421,12 @@ is copied to protected output.
 
 ## Python interfaces
 
-`RuntimeBackend` should be a small protocol so file and directory workflows do
-not duplicate backend selection:
-
-```python
-class RuntimeBackend(Protocol):
-    def protect_source(self, source: str, filename: str) -> ProtectedArtifact: ...
-    def materialize_runtime(self, output_dir: Path) -> RuntimeBuildResult: ...
-```
-
+`NativeArtifactBuilder` owns the deterministic envelope rules,
+`RustRuntimeCompiler` owns temporary crate and wheel production, and
+`RustRuntimeBackend` coordinates transformed sources and output placement.
 `ProtectedArtifact` records launcher text, encrypted payload bytes, runtime ID,
 format version, and required Python tag. `RuntimeBuildResult` records the native
-module path, build command, target tag, hashes, and diagnostics. Concrete result
-types replace dictionaries with optional keys for new code.
+module path, wheel name, and Python tag.
 
 The canonical CLI becomes:
 
@@ -361,20 +480,42 @@ For each protection build, the Rust backend will:
 3. produce one native-format artifact per Python file using a unique artifact
    ID and nonce;
 4. copy the reviewed Rust crate template into a temporary directory;
-5. generate only the module-name wrapper and a temporary `key.bin` there;
+5. generate only the module-name wrapper and temporary root-key Rust module;
 6. set `CARGO_TARGET_DIR` inside the same temporary directory;
 7. invoke Maturin in release mode with the running Python interpreter and
    `--locked` dependency resolution;
 8. validate that exactly one compatible wheel was produced;
 9. extract only the expected `.pyd` or `.so` into a staging output directory;
 10. copy the same extension beside each directly runnable protected file;
-11. execute a generated-artifact smoke test before publishing output;
-12. atomically replace the requested output only after every file succeeds; and
-13. delete the temporary crate, key file, Cargo target directory, wheel, and
+11. copy output only after the native build succeeds; and
+12. delete the temporary crate, key module, Cargo target directory, wheel, and
     decrypted test artifacts on success or failure.
 
+An internal pre-publication smoke test and transactional replacement of an
+already existing output tree remain release-hardening work. Current build
+failures occur before launcher publication, but publishing multiple filesystem
+entries cannot yet be described as one atomic operation.
+
+## Current implementation snapshot
+
+| Capability | Current state |
+|---|---|
+| `SKJNR001` bounded header and AES-GCM authenticated payload | Implemented |
+| Per-artifact HKDF-SHA256 key, artifact ID, and nonce | Implemented |
+| Strict Rust JSON parsing and anti-debug check | Implemented |
+| Direct CPython marshal decode and evaluation | Implemented |
+| Zeroized derived key, plaintext, and decompressed buffers | Implemented |
+| Locked Maturin release build with temporary Cargo target | Implemented |
+| CLI single-file and nested-directory execution | Passing on Windows/CPython 3.12 |
+| Python-hook code capture/canary recovery | 0/1 in focused automated trial |
+| Ciphertext tamper rejection | Passing in Python and native E2E tests |
+| Expiration, machine, domain, white-box, virtualization | Explicitly rejected |
+| Full 18-artifact native evaluation and native debugger procedure | Pending |
+| Cross-platform and CPython 3.10–3.13 matrix | Pending |
+| Remote/short-lived key provider | Pending |
+
 Command output must redact the root key, derived keys, decrypted payloads, and
-temporary `key.bin` path. Verbose mode may show tool versions, target triple,
+temporary root-key module path. Verbose mode may show tool versions, target triple,
 wheel tag, runtime ID, duration, and final artifact hashes.
 
 ## Staged implementation backlog
@@ -509,9 +650,9 @@ authorization expires or is revoked.
 
 | Test location | Coverage |
 |---|---|
-| `tests/test_native_artifact_format.py` | Header/schema round trips, bounds, mutations, authentication failures |
-| `tests/test_rust_runtime_builder.py` | Tool detection, redaction, temporary cleanup, wheel validation |
-| `tests/test_cli_native_runtime.py` | Public CLI file/directory E2E execution and failure behavior |
+| `tests/test_native_artifacts.py` | Header/schema round trips, mutations, authentication failures |
+| `tests/test_cli_rust_runtime.py` | Public CLI file/directory E2E, tampering, and Python-hook attack |
+| `tests/test_rust_runtime_builder.py` | Locked identity, invalid names, and failure cleanup; wheel validation is pending |
 | `tests/test_native_runtime_semantics.py` | Imports, exceptions, async, generators, decorators, module globals |
 | `tests/test_security_evaluation.py` | Native profile aggregation and attack evidence |
 | Rust crate unit tests | Parser, crypto vectors, policy, FFI error mapping, zeroization guards |

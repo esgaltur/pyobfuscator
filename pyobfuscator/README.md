@@ -62,6 +62,13 @@ For PYD protection, install Cython:
 pip install cython
 ```
 
+For the experimental Rust runtime, install the Rust toolchain and the native
+build extra:
+
+```powershell
+pip install ".[rust]"
+```
+
 ## Usage
 
 ### Command Line
@@ -84,6 +91,9 @@ python -m skjol obfuscate -i script.py -o protected.py --string-method xor
 
 # Verbose output
 python -m skjol obfuscate -i src -o dist -v
+
+# Build a version-specific Rust native runtime (experimental)
+python -m skjol obfuscate -i script.py -o dist\script.py --runtime rust
 ```
 
 Runtime-encrypted output imports a generated
@@ -167,6 +177,8 @@ results = obfuscator.obfuscate_directory(
 | `--exclude-patterns` | File patterns to skip |
 | `--no-encrypt` | Apply AST obfuscation without runtime encryption |
 | `--no-anti-debug` | Disable runtime anti-debug checks |
+| `--runtime` | Select `python`, `cython`, or experimental `rust` runtime |
+| `--pyd` | Deprecated alias for `--runtime cython` |
 | `--code-virtualization` | Enable VM-based code transformation |
 | `--whitebox` | Enable white-box encryption support |
 | `--control-flow-flatten` | Enable control-flow flattening |

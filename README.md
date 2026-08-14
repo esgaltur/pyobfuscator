@@ -73,6 +73,30 @@ matching `skjol_runtime_<id>.py`. Distribute that runtime alongside the
 protected file. To apply AST transformations without encryption, add
 `--no-encrypt`.
 
+### Experimental Rust Native Runtime
+
+The opt-in Rust backend moves authenticated decryption, metadata parsing,
+marshal decoding, and code dispatch behind a PyO3 extension. Install its build
+dependencies and ensure `rustc` and Cargo are available:
+
+```powershell
+pip install "skjol[rust]"
+python -m skjol obfuscate -i .\app.py -o .\dist\app.py --runtime rust
+```
+
+The output contains the Python launcher and a matching
+`skjol_runtime_<id>.pyd` (or `.so` on Unix). Keep them together. The current
+proof of concept has been exercised on Windows 11 with CPython 3.12; the
+portable `python` backend remains the default. Expiration, machine binding,
+domain locking, white-box encryption, and code virtualization currently fail
+closed when the Rust backend is selected.
+
+A focused native trial executed successfully and prevented the repository's
+Python-level `eval`, `exec`, and `marshal.loads` hooks from capturing the
+protected code object or canary. This does not prevent a native debugger,
+memory inspection, binary patching, or extraction of the embedded offline root
+key. See the [native runtime design and sequence diagrams](docs/RUST_NATIVE_RUNTIME_CONSIDERATION.md).
+
 ### Advanced Protection
 
 ```powershell

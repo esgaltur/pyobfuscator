@@ -78,6 +78,29 @@ the shipped Python files but did not prevent recovery during execution. The
 anti-debug setting was bypassed by changing its decrypted metadata through the
 interposed `eval` call. The default and hardened profiles had the same outcome.
 
+## Experimental Rust-runtime result
+
+On the same Windows 11 and CPython 3.12.10 environment, a focused automated
+proof-of-concept trial protected one independent canary fixture through the
+public CLI with `--runtime rust --no-anti-debug`. The test then executed the
+artifact normally and applied the same Python-level `eval`, `exec`, and
+`marshal.loads` interposition procedure:
+
+| Outcome | Observed |
+|---|---:|
+| Native protection completed | 1/1 |
+| Normal native execution passed | 1/1 |
+| Protected code objects captured by Python hooks | 0/1 |
+| Native canaries recovered by Python hooks | 0/1 |
+| Modified native ciphertext rejected | 1/1 |
+
+This is an implementation test, not the full native security release gate and
+not evidence of universal resistance. The offline root key is embedded in the
+compiled extension, and native debugging, binary instrumentation, process
+memory inspection, and key extraction remain possible. The next security gate
+is the documented 18-artifact native run plus a separate native-observation
+procedure.
+
 ## Remediation hierarchy
 
 Pure Python cannot provide a hard confidentiality boundary against the owner of

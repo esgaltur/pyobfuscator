@@ -1,0 +1,20 @@
+[package]
+name = "skjol-runtime-template"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "skjol_runtime_template"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+aes-gcm = "0.11.0"
+base64 = "0.22.1"
+flate2 = "1.1.9"
+hkdf = "0.13.0"
+pyo3 = { version = "0.29.2", features = ["extension-module"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.151"
+sha2 = "0.11.0"
+zeroize = "1.9.0"

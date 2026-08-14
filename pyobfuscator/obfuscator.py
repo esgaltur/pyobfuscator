@@ -113,6 +113,8 @@ class Obfuscator:
             if k in protector_keys and v is not None
         }
 
+        if self.config.get('runtime_backend') == 'rust':
+            return None
         if self.config.get('use_pyd_compilation'):
             return PydRuntimeProtector(**protector_kwargs)
         if self.config.get('encrypt_code'):
@@ -269,7 +271,7 @@ class Obfuscator:
                 results[str(relative_path)] = "success"
             except Exception as e:
                 results[str(relative_path)] = f"failed: {e}"
-                logger.error(f"Phase 2 failed for {py_file}: {e}")
+                logger.exception(f"Phase 2 failed for {py_file}: {e}")
 
         return results
 

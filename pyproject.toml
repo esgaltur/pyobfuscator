@@ -31,6 +31,7 @@ dependencies = []
 [project.optional-dependencies]
 crypto = ["cryptography>=46.0.7"]
 pyd = ["cython>=3.0.0"]
+rust = ["cryptography>=46.0.7", "maturin>=1.9,<2"]
 all = ["cryptography>=46.0.7", "cython>=3.0.0"]
 dev = [
     "pytest>=7.0.0",
@@ -62,7 +63,12 @@ include = ["skjol*", "pyobfuscator*"]
 exclude = ["examples*"]
 
 [tool.setuptools.package-data]
-pyobfuscator = ["README.md"]
+pyobfuscator = [
+    "README.md",
+    "_native/skjol_runtime/Cargo.toml",
+    "_native/skjol_runtime/Cargo.lock",
+    "_native/skjol_runtime/src/*.rs",
+]
 
 [tool.setuptools.dynamic]
 version = {attr = "pyobfuscator._version.__version__"}

@@ -89,7 +89,7 @@ class BenchmarkRunner:
         tracemalloc.start()
         ns = {}
         exec(obfuscated_source, ns)
-        current, peak = tracemalloc.get_traced_memory()
+        _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
         
         # 4. Measure Size
