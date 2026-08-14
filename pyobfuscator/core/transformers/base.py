@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Base transformer classes for PyObfuscator.
+Base transformer classes for Skjol.
 
 Provides abstract base classes for AST transformers.
 """

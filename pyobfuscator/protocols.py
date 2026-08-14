@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Protocol definitions for PyObfuscator.
+Protocol definitions for Skjol.
 
 Defines interfaces using Python's Protocol class for type hints and
 structural subtyping. These protocols enable dependency injection,

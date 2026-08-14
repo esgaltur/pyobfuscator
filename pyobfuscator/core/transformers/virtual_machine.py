@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Instruction-Level Virtualization for PyObfuscator.
+Instruction-Level Virtualization for Skjol.
 
 Compiles Python AST into custom VM bytecode and injects a VM interpreter.
 """
@@ -64,15 +64,18 @@ class VMCompiler:
             elif isinstance(node.op, ast.Sub): self.bytecode.append(self.OP_SUB)
             elif isinstance(node.op, ast.Mult): self.bytecode.append(self.OP_MUL)
             elif isinstance(node.op, ast.BitXor): self.bytecode.append(self.OP_XOR)
+            else: raise NotImplementedError(f"Unsupported binary operator: {type(node.op).__name__}")
             
         elif isinstance(node, ast.Assign):
             # Target must be a Name for this simple VM
-            if isinstance(node.targets[0], ast.Name):
+            if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
                 addr = self._get_addr(node.targets[0].id)
                 self.bytecode.append(self.OP_PUSH)
                 self.bytecode.extend(struct.pack('<I', addr))
                 self.compile_node(node.value)
                 self.bytecode.append(self.OP_STORE)
+            else:
+                raise NotImplementedError("VM assignments require a simple name target")
 
         elif isinstance(node, ast.Return):
             if node.value:
@@ -82,6 +85,9 @@ class VMCompiler:
                 self.compile_node(node.value)
                 self.bytecode.append(self.OP_STORE)
             self.bytecode.append(self.OP_HALT)
+
+        else:
+            raise NotImplementedError(f"Unsupported VM node: {type(node).__name__}")
 
     def compile_function(self, body: List[ast.stmt]) -> bytes:
         for stmt in body:
@@ -116,9 +122,8 @@ class VirtualMachineTransformer(BaseTransformer):
 
         # Check for function arguments and add them to compiler symbol table
         compiler = VMCompiler()
-        for i, arg in enumerate(node.args.args):
-            addr = compiler._get_addr(arg.arg)
-            # We'll need to initialize these in the new_body
+        for arg in node.args.args:
+            compiler._get_addr(arg.arg)
 
         try:
             bytecode = compiler.compile_function(node.body)
@@ -128,18 +133,40 @@ class VirtualMachineTransformer(BaseTransformer):
         bytecode_hex = bytecode.hex()
         
         new_body = [
-            ast.Import(names=[ast.alias(name='pyobfuscator.runtime_protection', asname='_vm_mod')]),
+            ast.Try(
+                body=[
+                    ast.Assign(
+                        targets=[ast.Name(id='_vm_cls', ctx=ast.Store())],
+                        value=ast.Name(id='_SkjolVM', ctx=ast.Load()),
+                    )
+                ],
+                handlers=[
+                    ast.ExceptHandler(
+                        type=ast.Name(id='NameError', ctx=ast.Load()),
+                        name=None,
+                        body=[
+                            ast.ImportFrom(
+                                module='skjol.runtime_protection',
+                                names=[ast.alias(name='VM', asname='_vm_cls')],
+                                level=0,
+                            )
+                        ],
+                    )
+                ],
+                orelse=[],
+                finalbody=[],
+            ),
             ast.Assign(
                 targets=[ast.Name(id='_vm', ctx=ast.Store())],
                 value=ast.Call(
-                    func=ast.Attribute(value=ast.Name(id='_vm_mod', ctx=ast.Load()), attr='VM', ctx=ast.Load()),
+                    func=ast.Name(id='_vm_cls', ctx=ast.Load()),
                     args=[], keywords=[]
                 )
             )
         ]
 
         # Initialize function arguments in VM memory
-        for i, arg in enumerate(node.args.args):
+        for arg in node.args.args:
             addr = compiler.symbol_table[arg.arg]
             new_body.append(
                 ast.Assign(

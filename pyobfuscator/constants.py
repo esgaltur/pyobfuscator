@@ -1,11 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-Constants module for PyObfuscator.
+Constants module for Skjol.
 
 Centralizes all magic values, configuration constants, and default settings.
 """
 
 from typing import Set, Dict, List
+
+
+PRODUCT_NAME = "Skjol"
+CLI_NAME = "skjol"
+CONFIG_BASENAME = "skjol"
+LEGACY_CONFIG_BASENAME = "pyobfuscator"
+RUNTIME_MODULE_PREFIX = "skjol_runtime_"
+RUNTIME_ENTRY_POINT = "__skjol__"
 
 
 class RuntimeConstants:

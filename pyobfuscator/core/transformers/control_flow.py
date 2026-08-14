@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Control flow obfuscation for PyObfuscator.
+Control flow obfuscation for Skjol.
 
 Provides techniques for obscuring the logical flow of Python code.
 """
@@ -8,11 +8,13 @@ Provides techniques for obscuring the logical flow of Python code.
 import ast
 import random
 import string
-import secrets
 from typing import List, Tuple, Optional
 
 from .base import BaseTransformer
 from ..registry import TransformerRegistry
+
+# The stdlib PRNG below varies emitted dead code and opaque constants only.
+# Every generated value is embedded in the output and is never a key, nonce, token, or authorization decision.
 
 
 @TransformerRegistry.register("control_flow_obfuscator")
@@ -23,7 +25,7 @@ class ControlFlowObfuscator(BaseTransformer):
 
     def __init__(self, intensity: int = 1, **kwargs):
         self.intensity = min(max(intensity, 1), 3)
-        self._blind_key = random.randint(0x10000000, 0x7FFFFFFF)
+        self._blind_key = random.randint(0x10000000, 0x7FFFFFFF)  # NOSONAR
         self._var_prefix = f"_{''.join(random.choices(string.ascii_lowercase, k=3))}"
         self._counter = 0
 
@@ -41,7 +43,7 @@ class ControlFlowObfuscator(BaseTransformer):
         return random.choice(patterns)()
 
     def _opaque_squared_non_negative(self) -> ast.expr:
-        val = random.randint(1, 1000)
+        val = random.randint(1, 1000)  # NOSONAR
         return ast.Compare(
             left=ast.BinOp(left=ast.Constant(value=val), op=ast.Mult(), right=ast.Constant(value=val)),
             ops=[ast.GtE()],
@@ -63,7 +65,7 @@ class ControlFlowObfuscator(BaseTransformer):
         return value ^ self._blind_key, self._blind_key
 
     def _opaque_blinded_comparison(self) -> ast.expr:
-        original = random.randint(1, 255)
+        original = random.randint(1, 255)  # NOSONAR
         blinded, key = self._blind_constant(original)
         return ast.Compare(
             left=ast.BinOp(left=ast.Constant(value=blinded), op=ast.BitXor(), right=ast.Constant(value=key)),
@@ -72,7 +74,7 @@ class ControlFlowObfuscator(BaseTransformer):
         )
 
     def _opaque_bitwise_identity(self) -> ast.expr:
-        val = random.randint(1, 0xFFFF)
+        val = random.randint(1, 0xFFFF)  # NOSONAR
         return ast.Compare(
             left=ast.BinOp(left=ast.Constant(value=val), op=ast.BitAnd(), right=ast.Constant(value=val)),
             ops=[ast.Eq()],
@@ -83,7 +85,7 @@ class ControlFlowObfuscator(BaseTransformer):
         var_name = self._get_unique_name()
         return [ast.Assign(
             targets=[ast.Name(id=var_name, ctx=ast.Store())],
-            value=ast.Constant(value=random.randint(0, 0xFFFFFFFF))
+            value=ast.Constant(value=random.randint(0, 0xFFFFFFFF))  # NOSONAR
         )]
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> ast.FunctionDef:

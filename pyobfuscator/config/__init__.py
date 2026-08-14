@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Configuration module for PyObfuscator.
+Configuration module for Skjol.
 
 Provides configuration classes and builder pattern implementations.
 """

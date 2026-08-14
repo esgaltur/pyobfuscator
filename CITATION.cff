@@ -1,11 +1,11 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 type: software
-title: "PyObfuscator: A Multi-Layer Defense Framework for Python Code Protection"
-version: 2.0.0
-date-released: 2026-03-01
-url: "https://github.com/esgaltur/pyobfuscator"
-repository-code: "https://github.com/esgaltur/pyobfuscator"
+title: "Skjol: A Multi-Layer Defense Framework for Python Code Protection"
+version: 2.0.2
+date-released: 2026-03-04
+url: "https://github.com/esgaltur/skjol"
+repository-code: "https://github.com/esgaltur/skjol"
 license: MIT
 authors:
   - family-names: "Sosnovic"
@@ -31,7 +31,7 @@ keywords:
   - cython
   - pyd-compilation
 abstract: >-
-  PyObfuscator v2.0 is an open-source Python code protection framework
+  Skjol v2.0 is an open-source Python code protection framework
   implementing defense-in-depth through multiple security layers: AST-based
   code obfuscation with polymorphic string engines, AES-256-GCM encryption
   with PBKDF2 key derivation, control flow flattening with opaque predicates,
@@ -43,8 +43,8 @@ abstract: >-
   runtimes with unique variable names, randomized decryptors, and
   self-modifying code to resist pattern matching. Integrated Cython
   compilation produces native .pyd/.so binaries for maximum protection.
-  PyObfuscator provides enterprise-grade protection comparable to commercial
-  solutions while remaining completely free and open source under MIT license.
+  Skjol is free and open source under the MIT license. Its protection raises
+  analysis cost but does not make Python artifacts impossible to recover.
 references:
   - type: article
     authors:

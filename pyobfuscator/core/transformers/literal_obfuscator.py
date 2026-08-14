@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Literal and builtin obfuscation for PyObfuscator.
+Literal and builtin obfuscation for Skjol.
 
 Provides techniques for obscuring numeric literals and builtin function calls.
 """
@@ -26,7 +26,8 @@ class NumberObfuscator(BaseTransformer):
         if n == 0: return ast.Constant(value=0)
         
         def _make_xor():
-            mask = random.randint(1, 255)
+            # Reversible syntax mask embedded in the output, not cryptographic key material.
+            mask = random.randint(1, 255)  # NOSONAR
             return ast.BinOp(left=ast.Constant(value=n ^ mask), op=ast.BitXor(), right=ast.Constant(value=mask))
 
         return _make_xor()

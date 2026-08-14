@@ -1,7 +1,11 @@
-# PyObfuscator Project Improvement Suggestions
+# Skjol Project Improvement Suggestions
 
 Based on the AGENTS.md guidelines (SOLID principles, clean code, design patterns, maintainability), here are
 comprehensive improvement suggestions for the project.
+
+For user-visible functional requirements, measurable quality targets, product
+ideas, and release sequencing, see
+[`docs/REQUIREMENTS_AND_ROADMAP.md`](docs/REQUIREMENTS_AND_ROADMAP.md).
 
 ## ✅ Implementation Status
 
@@ -462,7 +466,7 @@ dev = [
 
 ## Summary
 
-The PyObfuscator project has solid functionality but can benefit from:
+The Skjol project has solid functionality but can benefit from:
 
 1. **Better separation of concerns** - Split large modules
 2. **Design patterns** - Strategy, Factory, Builder, Chain of Responsibility

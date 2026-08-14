@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Transformer registry for PyObfuscator.
+Transformer registry for Skjol.
 
 Provides a centralized registry for all transformation strategies,
 enabling dynamic discovery and instantiation.

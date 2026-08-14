@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Core module for PyObfuscator.
+Core module for Skjol.
 
 Contains the main obfuscation components and transformers.
 """

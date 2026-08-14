@@ -39,7 +39,8 @@ class PolymorphicStrategy(StringObfuscationStrategy):
         return "polymorphic"
 
     def obfuscate(self, value: str, context: Optional[TransformationContext] = None) -> ast.Call:
-        key = random.randint(1, 255)
+        # XOR values and names are embedded in generated code; this is reversible obfuscation, not encryption.
+        key = random.randint(1, 255)  # NOSONAR
         encoded = bytes([b ^ key for b in value.encode('utf-8')])
         
         # Use context session secret to make names unpredictable
@@ -47,9 +48,9 @@ class PolymorphicStrategy(StringObfuscationStrategy):
         if context:
             prefix = f"_{context.session_secret[:4].hex()}"
             
-        var_b = f"{prefix}_{random.randint(1000, 9999)}"
+        var_b = f"{prefix}_{random.randint(1000, 9999)}"  # NOSONAR
         
-        strategy_choice = random.randint(0, 2)
+        strategy_choice = random.randint(0, 2)  # NOSONAR
         
         if strategy_choice == 0:
             # bytes([v ^ key for v in encoded]).decode('utf-8')
@@ -145,7 +146,8 @@ class XorStrategy(StringObfuscationStrategy):
     @property
     def name(self) -> str: return "xor"
     def obfuscate(self, value: str, context: Optional[TransformationContext] = None) -> ast.Call:
-        key = random.randint(1, 255)
+        # The decoding key is present in the emitted AST and is not treated as a cryptographic secret.
+        key = random.randint(1, 255)  # NOSONAR
         encoded = bytes([b ^ key for b in value.encode('utf-8')])
         return ast.Call(func=ast.Attribute(value=ast.Call(func=ast.Name(id='bytes', ctx=ast.Load()), args=[ast.ListComp(elt=ast.BinOp(left=ast.Name(id='b', ctx=ast.Load()), op=ast.BitXor(), right=ast.Constant(value=key)), generators=[ast.comprehension(target=ast.Name(id='b', ctx=ast.Store()), iter=ast.Constant(value=encoded), ifs=[], is_async=0)])], keywords=[]), attr='decode', ctx=ast.Load()), args=[ast.Constant(value='utf-8')], keywords=[])
 

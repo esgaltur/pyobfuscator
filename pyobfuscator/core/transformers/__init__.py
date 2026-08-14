@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Transformers module for PyObfuscator.
+Transformers module for Skjol.
 
 Contains AST transformers and obfuscation strategies.
 """

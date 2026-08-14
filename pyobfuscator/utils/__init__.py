@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Utils module for PyObfuscator.
+Utils module for Skjol.
 
 Contains utility functions for file operations, AST manipulation, and more.
 """

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Entry point for running pyobfuscator as a module: python -m pyobfuscator
+Compatibility entry point for the legacy ``python -m pyobfuscator`` command.
 """
 
 from .cli import main

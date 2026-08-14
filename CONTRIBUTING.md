@@ -1,26 +1,26 @@
-# Contributing to PyObfuscator
+# Contributing to Skjol
 
-First off, thank you for considering contributing to PyObfuscator! It's people like you that make PyObfuscator such a great tool for the community.
+First off, thank you for considering contributing to Skjol! It's people like you that make Skjol such a great tool for the community.
 
 ## 🚀 Getting Started
 
 1.  **Fork the repository** on GitHub.
 2.  **Clone your fork** locally:
-    ```bash
-    git clone https://github.com/YOUR_USERNAME/pyobfuscator.git
-    cd pyobfuscator
+    ```powershell
+    git clone https://github.com/YOUR_USERNAME/skjol.git
+    cd skjol
     ```
 3.  **Set up a virtual environment**:
-    ```bash
-    python -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```powershell
+    python -m venv .venv
+    .\.venv\Scripts\Activate.ps1
     ```
 4.  **Install dependencies**:
-    ```bash
+    ```powershell
     pip install -e .[all,dev]
     ```
 5.  **Install pre-commit hooks**:
-    ```bash
+    ```powershell
     pre-commit install
     ```
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Cryptographic Engine Package for PyObfuscator.
+Cryptographic Engine Package for Skjol.
 """
 
 import hashlib

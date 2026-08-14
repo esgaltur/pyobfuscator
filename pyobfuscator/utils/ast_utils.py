@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-AST utility functions for PyObfuscator.
+AST utility functions for Skjol.
 
 Contains functions for AST manipulation and source code analysis.
 """

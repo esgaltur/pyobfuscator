@@ -1,6 +1,21 @@
 # Changelog
 
-All notable changes to PyObfuscator will be documented in this file.
+All notable changes to Skjol will be documented in this file.
+
+## [Unreleased]
+
+### Changed
+
+- Renamed the project, repository, distribution, public module, CLI command,
+  generated configuration, and runtime loader from PyObfuscator to Skjol.
+- Kept the `pyobfuscator` Python package, console command, and configuration
+  filenames as compatibility aliases for existing users.
+- Added cryptographic-agility and hybrid post-quantum migration goals to the
+  roadmap. AES-256-GCM remains the authenticated payload cipher.
+- Replaced the synthetic resistance score with a reproducible multi-fixture
+  evaluation of static recovery and Python runtime-interposition attacks.
+- Made virtualized encrypted artifacts use their distributed runtime VM instead
+  of requiring the Skjol package to be installed on the target machine.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -245,7 +260,7 @@ protected = protector.protect(obfuscated)
 
 ```bash
 # Clone and install
-git clone https://github.com/esgaltur/pyobfuscator.git
+git clone https://github.com/esgaltur/skjol.git
 cd pyobfuscator && pip install -e .
 
 # Install with all optional dependencies
@@ -269,9 +284,9 @@ Thanks to the Python community and all contributors who made this project possib
 
 ### 🔗 Links
 
-- **Homepage**: https://github.com/esgaltur/pyobfuscator
-- **Documentation**: https://github.com/esgaltur/pyobfuscator#readme
-- **Issues**: https://github.com/esgaltur/pyobfuscator/issues
+- **Homepage**: https://github.com/esgaltur/skjol
+- **Documentation**: https://github.com/esgaltur/skjol#readme
+- **Issues**: https://github.com/esgaltur/skjol/issues
 
 ---
 
@@ -280,5 +295,6 @@ Thanks to the Python community and all contributors who made this project possib
 - **2.0.0** (2026-03-01): Major release with Hexagonal Architecture
 - **1.0.0** (2026-01-31): Initial stable release
 
-[2.0.0]: https://github.com/esgaltur/pyobfuscator/releases/tag/v2.0.0
-[1.0.0]: https://github.com/esgaltur/pyobfuscator/releases/tag/v1.0.0
+[Unreleased]: https://github.com/esgaltur/skjol/compare/v2.0.2...HEAD
+[2.0.0]: https://github.com/esgaltur/skjol/releases/tag/v2.0.0
+[1.0.0]: https://github.com/esgaltur/skjol/releases/tag/v1.0.0

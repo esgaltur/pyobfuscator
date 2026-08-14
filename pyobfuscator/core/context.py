@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Transformation Context for PyObfuscator.
+Transformation Context for Skjol.
 
 Provides a strict contract for passing state, configuration, and shared
 secrets between different stages of the transformation pipeline.

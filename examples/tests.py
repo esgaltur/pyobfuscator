@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Tests for PyObfuscator library.
+Tests for Skjol library.
 """
 
 import ast
@@ -213,7 +213,7 @@ def read_config(path):
 
 def run_all_tests():
     """Run all tests."""
-    print("Running PyObfuscator tests...")
+    print("Running Skjol tests...")
     print("=" * 50)
 
     test_name_generator()

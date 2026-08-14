@@ -11,10 +11,13 @@ Scans a Python project directory and:
 """
 
 import ast
+import importlib
 import json
-from pathlib import Path
-from typing import Dict, Set, List, Optional, Any
+import re
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
 
 
 @dataclass
@@ -45,6 +48,211 @@ class ProjectAnalysis:
     recommendations: List[str] = field(default_factory=list)
 
 
+class TomlDocumentLoader:
+    """Load TOML without coupling analysis to one parser package."""
+
+    PARSER_MODULES = ('tomllib', 'tomli')
+
+    @classmethod
+    def load(cls, content: str) -> Optional[Mapping[str, Any]]:
+        """Return parsed TOML, or ``None`` when no parser is installed."""
+        for module_name in cls.PARSER_MODULES:
+            try:
+                parser = importlib.import_module(module_name)
+            except ImportError:
+                continue
+            return parser.loads(content)
+        return None
+
+
+class PyProjectDependencyExtractor:
+    """Extract dependency specifications from supported pyproject layouts."""
+
+    @classmethod
+    def extract(cls, document: Mapping[str, Any]) -> List[str]:
+        """Collect PEP 621 and Poetry dependency declarations."""
+        dependencies: List[str] = []
+        project = cls._mapping(document.get('project'))
+        dependencies.extend(cls._sequence(project.get('dependencies')))
+
+        optional_groups = cls._mapping(project.get('optional-dependencies'))
+        for group in optional_groups.values():
+            dependencies.extend(cls._sequence(group))
+
+        tool = cls._mapping(document.get('tool'))
+        poetry = cls._mapping(tool.get('poetry'))
+        dependencies.extend(cls._mapping(poetry.get('dependencies')).keys())
+        dependencies.extend(cls._mapping(poetry.get('dev-dependencies')).keys())
+        return [str(dependency) for dependency in dependencies]
+
+    @staticmethod
+    def _mapping(value: Any) -> Mapping[str, Any]:
+        return value if isinstance(value, Mapping) else {}
+
+    @staticmethod
+    def _sequence(value: Any) -> Sequence[Any]:
+        if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+            return value
+        return ()
+
+
+class MainGuardEntryPointFinder(ast.NodeVisitor):
+    """Find calls to public functions inside real ``__main__`` guards."""
+
+    def __init__(self, public_names: Iterable[str]):
+        self._public_names = set(public_names)
+        self.entry_points: Set[str] = set()
+
+    @classmethod
+    def find(cls, tree: ast.AST, public_names: Iterable[str]) -> Set[str]:
+        finder = cls(public_names)
+        finder.visit(tree)
+        return finder.entry_points
+
+    def visit_If(self, node: ast.If) -> None:  # noqa: N802 - ast visitor API
+        if not self._is_main_guard(node.test):
+            self.generic_visit(node)
+            return
+
+        for statement in node.body:
+            self._collect_calls(statement)
+
+    def _collect_calls(self, statement: ast.AST) -> None:
+        for node in ast.walk(statement):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                if node.func.id in self._public_names:
+                    self.entry_points.add(node.func.id)
+
+    @classmethod
+    def _is_main_guard(cls, test: ast.AST) -> bool:
+        if not isinstance(test, ast.Compare) or len(test.ops) != 1 or len(test.comparators) != 1:
+            return False
+        if not isinstance(test.ops[0], ast.Eq):
+            return False
+
+        left, right = test.left, test.comparators[0]
+        return (
+                cls._is_name(left, '__name__') and cls._is_string(right, '__main__')
+        ) or (
+                cls._is_string(left, '__main__') and cls._is_name(right, '__name__')
+        )
+
+    @staticmethod
+    def _is_name(node: ast.AST, value: str) -> bool:
+        return isinstance(node, ast.Name) and node.id == value
+
+    @staticmethod
+    def _is_string(node: ast.AST, value: str) -> bool:
+        return isinstance(node, ast.Constant) and node.value == value
+
+
+class TomlConfigFormatter:
+    """Serialize the flat Skjol configuration and its comment metadata."""
+
+    _BARE_KEY = re.compile(r'^[A-Za-z0-9_-]+$')
+
+    def format(self, config: Mapping[str, Any], prefix: str = '') -> str:
+        lines = self._format_settings(config, prefix)
+        metadata = config.get('_metadata')
+        if isinstance(metadata, Mapping):
+            lines.extend(self._format_metadata(metadata))
+        return '\n'.join(lines) + '\n'
+
+    def _format_settings(self, config: Mapping[str, Any], prefix: str) -> List[str]:
+        lines: List[str] = []
+        for key, value in config.items():
+            if key.startswith('_') or isinstance(value, Mapping):
+                continue
+            formatted = self._format_value(value)
+            if formatted is not None:
+                lines.append(f'{self._qualified_key(prefix, key)} = {formatted}')
+        return lines
+
+    def _format_value(self, value: Any) -> Optional[str]:
+        if isinstance(value, bool):
+            return str(value).lower()
+        if isinstance(value, str):
+            return json.dumps(value, ensure_ascii=False)
+        if isinstance(value, (int, float)):
+            return str(value)
+        if isinstance(value, list):
+            items = [self._format_value(item) for item in value]
+            if all(item is not None for item in items):
+                return f"[{', '.join(item for item in items if item is not None)}]"
+        return None
+
+    def _qualified_key(self, prefix: str, key: str) -> str:
+        formatted_key = self._format_key(key)
+        return f'{prefix}.{formatted_key}' if prefix else formatted_key
+
+    def _format_key(self, key: str) -> str:
+        return key if self._BARE_KEY.fullmatch(key) else json.dumps(key, ensure_ascii=False)
+
+    def _format_metadata(self, metadata: Mapping[str, Any]) -> List[str]:
+        lines = ['', '# Generated configuration metadata']
+        for key, value in metadata.items():
+            values = value if isinstance(value, list) else [value]
+            for item in values:
+                lines.extend(self._comment_lines(str(key), item))
+        return lines
+
+    @staticmethod
+    def _comment_lines(key: str, value: Any) -> List[str]:
+        text_lines = str(value).splitlines() or ['']
+        return [f'# {key}: {line}' for line in text_lines]
+
+
+class ProjectSummaryFormatter:
+    """Render project analysis separately from console output."""
+
+    SEPARATOR = '=' * 60
+    PREVIEW_LIMIT = 10
+
+    def format(self, analysis: ProjectAnalysis, project_name: str) -> str:
+        lines = [
+            '',
+            self.SEPARATOR,
+            f'Project Analysis: {project_name}',
+            self.SEPARATOR,
+            '',
+            f'Total Python files: {len(analysis.modules)}',
+        ]
+        self._append_frameworks(lines, analysis.detected_frameworks)
+        self._append_preview(lines, 'Entry points', analysis.entry_points)
+        self._append_preview(lines, 'Public API names', analysis.public_api)
+        self._append_all(lines, 'Warnings', analysis.warnings, '!')
+        self._append_all(lines, 'Recommendations', analysis.recommendations, '*')
+        lines.extend(['', self.SEPARATOR, ''])
+        return '\n'.join(lines)
+
+    @staticmethod
+    def _append_frameworks(lines: List[str], frameworks: Iterable[str]) -> None:
+        sorted_frameworks = sorted(frameworks)
+        if not sorted_frameworks:
+            lines.extend(['', 'No specific frameworks detected.'])
+            return
+        lines.extend(['', 'Detected frameworks:'])
+        lines.extend(f'  - {framework}' for framework in sorted_frameworks)
+
+    def _append_preview(self, lines: List[str], title: str, values: Iterable[str]) -> None:
+        sorted_values = sorted(values)
+        if not sorted_values:
+            return
+        lines.extend(['', f'{title} ({len(sorted_values)}):'])
+        lines.extend(f'  - {value}' for value in sorted_values[:self.PREVIEW_LIMIT])
+        remaining = len(sorted_values) - self.PREVIEW_LIMIT
+        if remaining > 0:
+            lines.append(f'  ... and {remaining} more')
+
+    @staticmethod
+    def _append_all(lines: List[str], title: str, values: Iterable[str], marker: str) -> None:
+        values = list(values)
+        if not values:
+            return
+        lines.extend(['', f'{title}:'])
+        lines.extend(f'  {marker} {value}' for value in values)
+
+
 class ProjectAnalyzer:
     """
     Analyzes a Python project and generates obfuscation configuration.
@@ -52,7 +260,7 @@ class ProjectAnalyzer:
     Usage:
         analyzer = ProjectAnalyzer("./my_project")
         config = analyzer.analyze()
-        analyzer.save_config("pyobfuscator.json")
+        analyzer.save_config("skjol.json")
     """
 
     # Framework detection patterns: import name -> framework preset
@@ -142,6 +350,22 @@ class ProjectAnalyzer:
         'Window',
     }
 
+    FRAMEWORK_ENTRY_POINTS = {
+        'click': {'cli', 'main', 'app'},
+        'flask': {'create_app', 'app', 'application'},
+        'fastapi': {'app', 'create_app', 'get_app'},
+        'django': {'urlpatterns', 'application', 'wsgi', 'asgi'},
+    }
+
+    TOP_LEVEL_HANDLERS = {
+        ast.Assign: '_process_export_assignment',
+        ast.FunctionDef: '_process_top_level_function',
+        ast.AsyncFunctionDef: '_process_top_level_function',
+        ast.ClassDef: '_process_top_level_class',
+    }
+
+    ENTRY_CLASS_MARKERS = ('window', 'app', 'application', 'gui', 'dialog')
+
     # Files that typically shouldn't be obfuscated
     DEFAULT_EXCLUDE_PATTERNS = [
         '__pycache__',
@@ -172,6 +396,9 @@ class ProjectAnalyzer:
         self.project_path = Path(project_path).resolve()
         self.analysis = ProjectAnalysis(root_path=self.project_path)
         self._processed_files: Set[Path] = set()
+        self._entry_point_names = {name.casefold() for name in self.ENTRY_POINT_PATTERNS}
+        self._toml_formatter = TomlConfigFormatter()
+        self._summary_formatter = ProjectSummaryFormatter()
 
     def analyze(self) -> ProjectAnalysis:
         """
@@ -224,7 +451,6 @@ class ProjectAnalyzer:
 
         # Handle various requirement formats:
         # package==1.0.0, package>=1.0, package[extra], package @ url
-        import re
         match = re.match(r'^([a-zA-Z0-9_-]+)', line)
         if match:
             return match.group(1).lower()
@@ -247,9 +473,8 @@ class ProjectAnalyzer:
                     content = req_file.read_text(encoding='utf-8')
                     for line in content.splitlines():
                         package_name = self._parse_requirement_line(line)
-                        if package_name and package_name in self.REQUIREMENTS_FRAMEWORK_MAP:
-                            framework = self.REQUIREMENTS_FRAMEWORK_MAP[package_name]
-                            self.analysis.detected_frameworks.add(framework)
+                        if package_name:
+                            self._record_dependency_framework(package_name)
                 except Exception:
                     self.analysis.warnings.append(f"Could not parse {req_file.name}")
 
@@ -261,54 +486,28 @@ class ProjectAnalyzer:
 
         try:
             content = pyproject_path.read_text(encoding='utf-8')
-
-            # Try to parse with tomllib (Python 3.11+) or tomli
-            try:
-                import tomllib
-                data = tomllib.loads(content)
-            except ImportError:
-                try:
-                    import tomli
-                    data = tomli.loads(content)
-                except ImportError:
-                    # Fall back to regex parsing
-                    self._analyze_pyproject_toml_regex(content)
-                    return
-
-            # Extract dependencies from various locations
-            dependencies = []
-
-            # [project.dependencies]
-            if 'project' in data and 'dependencies' in data['project']:
-                dependencies.extend(data['project']['dependencies'])
-
-            # [project.optional-dependencies]
-            if 'project' in data and 'optional-dependencies' in data['project']:
-                for deps in data['project']['optional-dependencies'].values():
-                    dependencies.extend(deps)
-
-            # [tool.poetry.dependencies]
-            if 'tool' in data and 'poetry' in data['tool']:
-                poetry = data['tool']['poetry']
-                if 'dependencies' in poetry:
-                    dependencies.extend(poetry['dependencies'].keys())
-                if 'dev-dependencies' in poetry:
-                    dependencies.extend(poetry['dev-dependencies'].keys())
-
-            # Detect frameworks from dependencies
-            for dep in dependencies:
-                package_name = self._parse_requirement_line(str(dep))
-                if package_name and package_name in self.REQUIREMENTS_FRAMEWORK_MAP:
-                    framework = self.REQUIREMENTS_FRAMEWORK_MAP[package_name]
-                    self.analysis.detected_frameworks.add(framework)
-
+            document = TomlDocumentLoader.load(content)
+            if document is None:
+                self._analyze_pyproject_toml_regex(content)
+                return
+            self._record_dependency_frameworks(PyProjectDependencyExtractor.extract(document))
         except Exception as e:
             self.analysis.warnings.append(f"Could not fully parse pyproject.toml: {e}")
 
+    def _record_dependency_frameworks(self, dependencies: Iterable[str]) -> None:
+        """Add frameworks represented by dependency specifications."""
+        for dependency in dependencies:
+            package_name = self._parse_requirement_line(str(dependency))
+            if package_name:
+                self._record_dependency_framework(package_name)
+
+    def _record_dependency_framework(self, package_name: str) -> None:
+        framework = self.REQUIREMENTS_FRAMEWORK_MAP.get(package_name)
+        if framework:
+            self.analysis.detected_frameworks.add(framework)
+
     def _analyze_pyproject_toml_regex(self, content: str) -> None:
         """Fallback regex parsing for pyproject.toml when toml library unavailable."""
-        import re
-
         # Simple pattern to find dependencies
         for package_name in self.REQUIREMENTS_FRAMEWORK_MAP.keys():
             pattern = rf'["\']?{re.escape(package_name)}["\']?\s*[=><\[]'
@@ -326,8 +525,6 @@ class ProjectAnalyzer:
             content = setup_path.read_text(encoding='utf-8')
 
             # Look for install_requires patterns
-            import re
-
             # Match install_requires=[...] or install_requires=["..."]
             for package_name in self.REQUIREMENTS_FRAMEWORK_MAP.keys():
                 pattern = rf'["\']({re.escape(package_name)})["\'\s,\]]'
@@ -397,71 +594,78 @@ class ProjectAnalyzer:
     def _process_node(self, node: ast.AST, module_info: ModuleInfo) -> None:
         """Process an AST node for imports and framework detection."""
         if isinstance(node, ast.Import):
-            for alias in node.names:
-                module_name = alias.name.split('.')[0]
-                module_info.imports.add(module_name)
-                self._check_framework(module_name)
-
+            self._process_import(node, module_info)
         elif isinstance(node, ast.ImportFrom):
-            if node.module:
-                module_name = node.module.split('.')[0]
-                module_info.imports.add(module_name)
-                self._check_framework(module_name)
+            self._process_from_import(node, module_info)
 
-                # Track specific imports
-                imported_names = set()
-                for alias in node.names:
-                    if alias.name != '*':
-                        imported_names.add(alias.name)
-                        self._check_framework(alias.name)
+    def _process_import(self, node: ast.Import, module_info: ModuleInfo) -> None:
+        for alias in node.names:
+            self._record_module_import(alias.name, module_info)
 
-                if module_name not in module_info.from_imports:
-                    module_info.from_imports[module_name] = set()
-                module_info.from_imports[module_name].update(imported_names)
+    def _process_from_import(self, node: ast.ImportFrom, module_info: ModuleInfo) -> None:
+        if not node.module:
+            return
+        module_name = self._record_module_import(node.module, module_info)
+        imported_names = {alias.name for alias in node.names if alias.name != '*'}
+        module_info.from_imports.setdefault(module_name, set()).update(imported_names)
+        for imported_name in imported_names:
+            self._check_framework(imported_name)
+
+    def _record_module_import(self, imported_path: str, module_info: ModuleInfo) -> str:
+        module_name = imported_path.split('.')[0]
+        module_info.imports.add(module_name)
+        self._check_framework(module_name)
+        return module_name
 
     def _process_top_level(self, node: ast.AST, module_info: ModuleInfo) -> None:
         """Process top-level definitions."""
-        # Check for __all__ definition
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == '__all__':
-                    if isinstance(node.value, (ast.List, ast.Tuple)):
-                        for elt in node.value.elts:
-                            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
-                                module_info.exports.add(elt.value)
-                                self.analysis.public_api.add(elt.value)
+        handler_name = self.TOP_LEVEL_HANDLERS.get(type(node))
+        if handler_name:
+            getattr(self, handler_name)(node, module_info)
 
-        # Check for function definitions
-        elif isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
-            name = node.name
+    def _process_export_assignment(self, node: ast.Assign, module_info: ModuleInfo) -> None:
+        if not self._assigns_to_all(node):
+            return
+        exports = self._string_sequence(node.value)
+        module_info.exports.update(exports)
+        self.analysis.public_api.update(exports)
 
-            # Skip test functions
-            if name.startswith('test_') or name.startswith('_'):
-                return
+    @staticmethod
+    def _assigns_to_all(node: ast.Assign) -> bool:
+        return any(isinstance(target, ast.Name) and target.id == '__all__' for target in node.targets)
 
-            module_info.public_names.add(name)
+    @staticmethod
+    def _string_sequence(node: ast.AST) -> Set[str]:
+        if not isinstance(node, (ast.List, ast.Tuple)):
+            return set()
+        return {
+            element.value
+            for element in node.elts
+            if isinstance(element, ast.Constant) and isinstance(element.value, str)
+        }
 
-            # Check for entry points
-            if name.lower() in {ep.lower() for ep in self.ENTRY_POINT_PATTERNS}:
-                module_info.entry_points.add(name)
-                self.analysis.entry_points.add(name)
+    def _process_top_level_function(
+            self,
+            node: ast.FunctionDef | ast.AsyncFunctionDef,
+            module_info: ModuleInfo,
+    ) -> None:
+        if node.name.startswith(('test_', '_')):
+            return
+        module_info.public_names.add(node.name)
+        if node.name.casefold() in self._entry_point_names:
+            self._record_entry_point(node.name, module_info)
 
-        # Check for class definitions
-        elif isinstance(node, ast.ClassDef):
-            name = node.name
+    def _process_top_level_class(self, node: ast.ClassDef, module_info: ModuleInfo) -> None:
+        if node.name.startswith(('Test', '_')):
+            return
+        module_info.public_names.add(node.name)
+        name = node.name.casefold()
+        if name in self._entry_point_names or any(marker in name for marker in self.ENTRY_CLASS_MARKERS):
+            self._record_entry_point(node.name, module_info)
 
-            # Skip test classes
-            if name.startswith('Test') or name.startswith('_'):
-                return
-
-            module_info.public_names.add(name)
-
-            # Check for entry point classes
-            if name in self.ENTRY_POINT_PATTERNS or any(
-                ep.lower() in name.lower() for ep in ['Window', 'App', 'Application', 'GUI', 'Dialog']
-            ):
-                module_info.entry_points.add(name)
-                self.analysis.entry_points.add(name)
+    def _record_entry_point(self, name: str, module_info: ModuleInfo) -> None:
+        module_info.entry_points.add(name)
+        self.analysis.entry_points.add(name)
 
     def _check_framework(self, name: str) -> None:
         """Check if a name indicates a framework."""
@@ -499,36 +703,22 @@ class ProjectAnalyzer:
 
     def _identify_additional_entry_points(self) -> None:
         """Identify additional entry points based on common patterns."""
-        # Check for if __name__ == '__main__' blocks
         for module_info in self.analysis.modules.values():
-            try:
-                content = module_info.path.read_text(encoding='utf-8')
-                if "if __name__ ==" in content or 'if __name__==' in content:
-                    # This file has a main block, check for main() call
-                    tree = ast.parse(content)
-                    for node in ast.walk(tree):
-                        if isinstance(node, ast.If):
-                            # Look for main() calls in the if block
-                            for stmt in ast.walk(node):
-                                if isinstance(stmt, ast.Call):
-                                    if isinstance(stmt.func, ast.Name):
-                                        func_name = stmt.func.id
-                                        if func_name in module_info.public_names:
-                                            self.analysis.entry_points.add(func_name)
-            except Exception:
-                pass
+            self.analysis.entry_points.update(self._find_guarded_entry_points(module_info))
+        self._add_framework_entry_points()
 
-        # Add common CLI entry points if click is detected
-        if 'click' in self.analysis.detected_frameworks:
-            self.analysis.entry_points.update({'cli', 'main', 'app'})
+    @staticmethod
+    def _find_guarded_entry_points(module_info: ModuleInfo) -> Set[str]:
+        try:
+            content = module_info.path.read_text(encoding='utf-8')
+            tree = ast.parse(content)
+        except (OSError, SyntaxError, UnicodeError):
+            return set()
+        return MainGuardEntryPointFinder.find(tree, module_info.public_names)
 
-        # Add common web entry points
-        if 'flask' in self.analysis.detected_frameworks:
-            self.analysis.entry_points.update({'create_app', 'app', 'application'})
-        if 'fastapi' in self.analysis.detected_frameworks:
-            self.analysis.entry_points.update({'app', 'create_app', 'get_app'})
-        if 'django' in self.analysis.detected_frameworks:
-            self.analysis.entry_points.update({'urlpatterns', 'application', 'wsgi', 'asgi'})
+    def _add_framework_entry_points(self) -> None:
+        for framework in self.analysis.detected_frameworks:
+            self.analysis.entry_points.update(self.FRAMEWORK_ENTRY_POINTS.get(framework, set()))
 
     def _generate_recommendations(self) -> None:
         """Generate recommendations based on analysis."""
@@ -623,7 +813,7 @@ class ProjectAnalyzer:
 
         # Add metadata
         config['_metadata'] = {
-            'generated_by': 'pyobfuscator analyzer',
+            'generated_by': 'skjol analyzer',
             'project_path': str(self.project_path),
             'detected_frameworks': sorted(self.analysis.detected_frameworks),
             'total_modules': len(self.analysis.modules),
@@ -634,15 +824,15 @@ class ProjectAnalyzer:
         return config
 
     def save_config(
-        self,
-        output_path: Optional[str | Path] = None,
-        format: str = 'json'
+            self,
+            output_path: Optional[str | Path] = None,
+            format: str = 'json'
     ) -> Path:
         """
         Save the generated configuration to a file.
 
         Args:
-            output_path: Path to save the config (default: pyobfuscator.json in project root)
+            output_path: Path to save the config (default: skjol.json in project root)
             format: 'json' or 'toml'
 
         Returns:
@@ -651,7 +841,7 @@ class ProjectAnalyzer:
         config = self.generate_config()
 
         if output_path is None:
-            output_path = self.project_path / f'pyobfuscator.{format}'
+            output_path = self.project_path / f'skjol.{format}'
         else:
             output_path = Path(output_path)
 
@@ -667,83 +857,12 @@ class ProjectAnalyzer:
 
     def _dict_to_toml(self, config: Dict[str, Any], prefix: str = '') -> str:
         """Convert a dictionary to TOML format."""
-        lines = []
-
-        # Process simple values first
-        for key, value in config.items():
-            if key.startswith('_'):
-                continue  # Skip metadata for TOML
-
-            if isinstance(value, dict):
-                continue  # Handle nested dicts later
-            elif isinstance(value, list):
-                if all(isinstance(v, str) for v in value):
-                    items = ', '.join(f'"{v}"' for v in value)
-                    lines.append(f'{key} = [{items}]')
-                else:
-                    items = ', '.join(str(v) for v in value)
-                    lines.append(f'{key} = [{items}]')
-            elif isinstance(value, bool):
-                lines.append(f'{key} = {str(value).lower()}')
-            elif isinstance(value, str):
-                lines.append(f'{key} = "{value}"')
-            elif isinstance(value, (int, float)):
-                lines.append(f'{key} = {value}')
-
-        # Add metadata as comments
-        if '_metadata' in config:
-            lines.append('')
-            lines.append('# Generated configuration metadata')
-            metadata = config['_metadata']
-            for key, value in metadata.items():
-                if isinstance(value, list):
-                    for item in value:
-                        lines.append(f'# {key}: {item}')
-                else:
-                    lines.append(f'# {key}: {value}')
-
-        return '\n'.join(lines) + '\n'
+        return self._toml_formatter.format(config, prefix)
 
     def print_summary(self) -> None:
         """Print a summary of the analysis to stdout."""
-        print(f"\n{'='*60}")
-        print(f"Project Analysis: {self.project_path.name}")
-        print(f"{'='*60}\n")
-
-        print(f"Total Python files: {len(self.analysis.modules)}")
-
-        if self.analysis.detected_frameworks:
-            print(f"\nDetected frameworks:")
-            for fw in sorted(self.analysis.detected_frameworks):
-                print(f"  - {fw}")
-        else:
-            print("\nNo specific frameworks detected.")
-
-        if self.analysis.entry_points:
-            print(f"\nEntry points ({len(self.analysis.entry_points)}):")
-            for ep in sorted(self.analysis.entry_points)[:10]:
-                print(f"  - {ep}")
-            if len(self.analysis.entry_points) > 10:
-                print(f"  ... and {len(self.analysis.entry_points) - 10} more")
-
-        if self.analysis.public_api:
-            print(f"\nPublic API names ({len(self.analysis.public_api)}):")
-            for name in sorted(self.analysis.public_api)[:10]:
-                print(f"  - {name}")
-            if len(self.analysis.public_api) > 10:
-                print(f"  ... and {len(self.analysis.public_api) - 10} more")
-
-        if self.analysis.warnings:
-            print(f"\nWarnings:")
-            for warning in self.analysis.warnings:
-                print(f"  ! {warning}")
-
-        if self.analysis.recommendations:
-            print(f"\nRecommendations:")
-            for rec in self.analysis.recommendations:
-                print(f"  * {rec}")
-
-        print(f"\n{'='*60}\n")
+        summary = self._summary_formatter.format(self.analysis, self.project_path.name)
+        print(summary)
 
 
 def analyze_project(project_path: str | Path) -> ProjectAnalysis:
@@ -761,10 +880,10 @@ def analyze_project(project_path: str | Path) -> ProjectAnalysis:
 
 
 def generate_config(
-    project_path: str | Path,
-    output_path: Optional[str | Path] = None,
-    format: str = 'json',
-    verbose: bool = False
+        project_path: str | Path,
+        output_path: Optional[str | Path] = None,
+        format: str = 'json',
+        verbose: bool = False
 ) -> Path:
     """
     Analyze a project and generate an obfuscation config file.
@@ -785,4 +904,3 @@ def generate_config(
         analyzer.print_summary()
 
     return analyzer.save_config(output_path, format)
-

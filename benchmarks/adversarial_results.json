@@ -1,0 +1,799 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-08-14T08:33:49.063024+00:00",
+  "project_revision": "4a77814ac6a0fc9e3f6e01d65c2168c8073bbec0",
+  "environment": {
+    "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+    "platform": "Windows-11-10.0.26100-SP0",
+    "implementation": "CPython"
+  },
+  "threat_model": {
+    "attacker_access": "All distributed Python loaders and runtime modules plus local execution",
+    "static_attack": "Exact canary search and original-identifier search across distributed Python files",
+    "dynamic_attack": "Python-level interposition of eval, marshal.loads, and exec; decrypted anti-debug metadata is changed before code-object and runtime-global inspection",
+    "not_measured": [
+      "Native PYD runtime extraction",
+      "OS-level process memory dumping",
+      "Debugger or disassembler effectiveness",
+      "Time or monetary cost for a human reverse engineer",
+      "Cryptographic strength of AES-256-GCM"
+    ]
+  },
+  "profiles": [
+    {
+      "name": "default",
+      "cli_args": []
+    },
+    {
+      "name": "hardened",
+      "cli_args": [
+        "--all-advanced",
+        "--intensity",
+        "3"
+      ]
+    }
+  ],
+  "fixtures": [
+    {
+      "name": "function_secret",
+      "source": "SERVICE_TOKEN = \"SKJOL_CANARY_ALPHA_91E7\"\ndef calculate_invoice(amount):\n    return amount * 3 + len(SERVICE_TOKEN)\nprint(calculate_invoice(7))\n",
+      "expected_stdout": "44",
+      "canaries": [
+        "SKJOL_CANARY_ALPHA_91E7"
+      ],
+      "identifiers": [
+        "SERVICE_TOKEN",
+        "calculate_invoice"
+      ]
+    },
+    {
+      "name": "class_configuration",
+      "source": "PRIVATE_ENDPOINT = \"SKJOL_CANARY_BRAVO_42CD\"\nclass RequestSigner:\n    def render(self):\n        return PRIVATE_ENDPOINT[-4:]\nprint(RequestSigner().render())\n",
+      "expected_stdout": "42CD",
+      "canaries": [
+        "SKJOL_CANARY_BRAVO_42CD"
+      ],
+      "identifiers": [
+        "PRIVATE_ENDPOINT",
+        "RequestSigner"
+      ]
+    },
+    {
+      "name": "container_secret",
+      "source": "CREDENTIALS = {\"token\": \"SKJOL_CANARY_CHARLIE_6A20\"}\ndef token_length():\n    return len(CREDENTIALS[\"token\"])\nprint(token_length())\n",
+      "expected_stdout": "25",
+      "canaries": [
+        "SKJOL_CANARY_CHARLIE_6A20"
+      ],
+      "identifiers": [
+        "CREDENTIALS",
+        "token_length"
+      ]
+    }
+  ],
+  "trials_per_fixture_profile": 3,
+  "results": [
+    {
+      "fixture": "function_secret",
+      "profile": "default",
+      "trial": 1,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "293866c94249d156d791acccf74175ea055fe7286f803a7cc51ce3cbc9ad91df",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "44",
+        "stdout": "44",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 6,
+        "recovered_canaries": [
+          "SKJOL_CANARY_ALPHA_91E7"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "function_secret",
+      "profile": "default",
+      "trial": 2,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "705f4a5f64058015ba399b2e8c3d4fc1d447e987c66f17f6b1e83a630e31e320",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "44",
+        "stdout": "44",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 6,
+        "recovered_canaries": [
+          "SKJOL_CANARY_ALPHA_91E7"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "function_secret",
+      "profile": "default",
+      "trial": 3,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "ffb599ba88687a3f91526aa0f6f3b1d3430efeaafe3751241575a5eb5e1697d8",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "44",
+        "stdout": "44",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 4,
+        "recovered_canaries": [
+          "SKJOL_CANARY_ALPHA_91E7"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "class_configuration",
+      "profile": "default",
+      "trial": 1,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "7c09c0cc374e931150b08af7d6054b308fe750d74bc2c491e6c767d4fd6be12e",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "42CD",
+        "stdout": "42CD",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 8,
+        "recovered_canaries": [
+          "SKJOL_CANARY_BRAVO_42CD"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "class_configuration",
+      "profile": "default",
+      "trial": 2,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "be4644d1af38ed8df0981774aa7218113deb2bf770fe5485acf79d8573c73a3b",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "42CD",
+        "stdout": "42CD",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 6,
+        "recovered_canaries": [
+          "SKJOL_CANARY_BRAVO_42CD"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "class_configuration",
+      "profile": "default",
+      "trial": 3,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "ccae5d98620529ce5e1e9516d3994028d1ef038b22ec019cdfbfd982de24c0d8",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "42CD",
+        "stdout": "42CD",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 8,
+        "recovered_canaries": [
+          "SKJOL_CANARY_BRAVO_42CD"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "container_secret",
+      "profile": "default",
+      "trial": 1,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "20cfd956629a9a944fb22dbc8152fc21e956f8923dde12c6a326f535fc16d477",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "25",
+        "stdout": "25",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 10,
+        "recovered_canaries": [
+          "SKJOL_CANARY_CHARLIE_6A20"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "container_secret",
+      "profile": "default",
+      "trial": 2,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "324d0dac67a708c7c8cb0d21103253f222a3828f3f32c738614db0dbfdeb7831",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "25",
+        "stdout": "25",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 8,
+        "recovered_canaries": [
+          "SKJOL_CANARY_CHARLIE_6A20"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "container_secret",
+      "profile": "default",
+      "trial": 3,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "cbbfeac0d994d2b1f83e15129f8ffb57cffa96bfd46a3bea831463abd9ea7ea0",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "25",
+        "stdout": "25",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 8,
+        "recovered_canaries": [
+          "SKJOL_CANARY_CHARLIE_6A20"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "function_secret",
+      "profile": "hardened",
+      "trial": 1,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "1e1f2cf47eeee2ac7b309ece7fe8e1e68b27292c796ab501439bc18c2200a860",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "44",
+        "stdout": "44",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 6,
+        "recovered_canaries": [
+          "SKJOL_CANARY_ALPHA_91E7"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "function_secret",
+      "profile": "hardened",
+      "trial": 2,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "f48e801af578d82da9d45bb97dccfbd6b1cb2e78022dbe5004cab525b501c20d",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "44",
+        "stdout": "44",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 6,
+        "recovered_canaries": [
+          "SKJOL_CANARY_ALPHA_91E7"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "function_secret",
+      "profile": "hardened",
+      "trial": 3,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "bc742d37f54e447fe11245c3a171dee23c46f641545e028ca09eabdf008901df",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "44",
+        "stdout": "44",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 6,
+        "recovered_canaries": [
+          "SKJOL_CANARY_ALPHA_91E7"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "class_configuration",
+      "profile": "hardened",
+      "trial": 1,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "e5b2ebb09f1037f7c679d530fa6675808274986e1fca3c855c8827b212c8a45d",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "42CD",
+        "stdout": "42CD",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 8,
+        "recovered_canaries": [
+          "SKJOL_CANARY_BRAVO_42CD"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "class_configuration",
+      "profile": "hardened",
+      "trial": 2,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "70fa904c03bd5bf3ecde8cef630ab02bda6e53f0d81c1206ee249a7ceef0cc91",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "42CD",
+        "stdout": "42CD",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 8,
+        "recovered_canaries": [
+          "SKJOL_CANARY_BRAVO_42CD"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "class_configuration",
+      "profile": "hardened",
+      "trial": 3,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "b1d7cf131573e523c5ed7bc780b2201712f05d6142b1c794b59bb4136fe6fd0a",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "42CD",
+        "stdout": "42CD",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 8,
+        "recovered_canaries": [
+          "SKJOL_CANARY_BRAVO_42CD"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "container_secret",
+      "profile": "hardened",
+      "trial": 1,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "f1327f86a671d93f5e3642f6546290ba4279545d14d337d453e68132827ae455",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "25",
+        "stdout": "25",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 10,
+        "recovered_canaries": [
+          "SKJOL_CANARY_CHARLIE_6A20"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "container_secret",
+      "profile": "hardened",
+      "trial": 2,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "8b9849994e385308660f25ab7fcb606da24ca53bddda1e4bc736aa5188e4c3ed",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "25",
+        "stdout": "25",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 10,
+        "recovered_canaries": [
+          "SKJOL_CANARY_CHARLIE_6A20"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    },
+    {
+      "fixture": "container_secret",
+      "profile": "hardened",
+      "trial": 3,
+      "protection": {
+        "returncode": 0,
+        "stdout": "Protection complete! (Code is encrypted with AES-256-GCM)\n",
+        "stderr": ""
+      },
+      "artifact_sha256": "73b05a6a38b15af173e2e0a20e5944079caeebe8ee734264eff8d10f8a064bc3",
+      "normal_execution": {
+        "passed": true,
+        "returncode": 0,
+        "expected_stdout": "25",
+        "stdout": "25",
+        "stderr": ""
+      },
+      "static_attack": {
+        "attack": "static_text_search",
+        "files_searched": 2,
+        "recovered_canaries": [],
+        "recovered_identifiers": []
+      },
+      "dynamic_attack": {
+        "attack": "python_runtime_function_interposition",
+        "process_returncode": 0,
+        "process_stderr": "",
+        "code_object_captured": true,
+        "anti_debug_policy_bypassed": true,
+        "captured_code_objects": 12,
+        "recovered_canaries": [
+          "SKJOL_CANARY_CHARLIE_6A20"
+        ],
+        "recovered_identifiers": [],
+        "execution_error": null,
+        "execution_traceback": null
+      }
+    }
+  ],
+  "aggregate": {
+    "protection_completed": {
+      "count": 18,
+      "total": 18,
+      "rate": 1.0
+    },
+    "normal_execution_passed": {
+      "count": 18,
+      "total": 18,
+      "rate": 1.0
+    },
+    "static_canary_recovery": {
+      "count": 0,
+      "total": 18,
+      "rate": 0.0
+    },
+    "static_identifier_recovery": {
+      "count": 0,
+      "total": 36,
+      "rate": 0.0
+    },
+    "dynamic_code_object_capture": {
+      "count": 18,
+      "total": 18,
+      "rate": 1.0
+    },
+    "dynamic_canary_recovery": {
+      "count": 18,
+      "total": 18,
+      "rate": 1.0
+    },
+    "dynamic_identifier_recovery": {
+      "count": 0,
+      "total": 36,
+      "rate": 0.0
+    }
+  },
+  "interpretation": "Rates apply only to the documented fixtures, profiles, environment, and attacks. They are not a universal security score."
+}

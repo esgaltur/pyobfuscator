@@ -1,7 +1,7 @@
 """
-PyObfuscator Examples and Demo Scripts
+Skjol Examples and Demo Scripts
 
-This folder contains example scripts and demos for using PyObfuscator:
+This folder contains example scripts and demos for using Skjol:
 
 - demo.py                    - Basic obfuscation demo
 - demo_runtime_protection.py - Runtime protection demo

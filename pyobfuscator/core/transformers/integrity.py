@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Integrity and Honey-Pot transformer for PyObfuscator.
+Integrity and Honey-Pot transformer for Skjol.
 
 Provides distributed integrity checks and fake identifier generation.
 """

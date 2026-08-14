@@ -1,18 +1,27 @@
 # -*- coding: utf-8 -*-
 """
-Command-line interface for PyObfuscator.
+Command-line interface for Skjol.
 Supports multiple commands:
 - obfuscate: Obfuscate Python source code
 - analyze: Analyze a project and generate configuration
-- init: Initialize a pyobfuscator.json config file
+- init: Initialize a skjol.json config file
 """
 
 import argparse
 import json
 import sys
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Mapping, Optional
 
+from ._version import __version__
+from .constants import (
+    CLI_NAME,
+    CONFIG_BASENAME,
+    LEGACY_CONFIG_BASENAME,
+    PRODUCT_NAME,
+    RUNTIME_MODULE_PREFIX,
+)
 from .obfuscator import Obfuscator
 
 
@@ -46,7 +55,16 @@ def _load_toml(content: str) -> Dict[str, Any]:
 
 def find_config() -> Optional[Path]:
     """Find configuration file in current directory."""
-    candidates = ['pyobfuscator.json', 'pyobfuscator.toml', '.pyobfuscator.json', '.pyobfuscator.toml']
+    candidates = [
+        f'{CONFIG_BASENAME}.json',
+        f'{CONFIG_BASENAME}.toml',
+        f'.{CONFIG_BASENAME}.json',
+        f'.{CONFIG_BASENAME}.toml',
+        f'{LEGACY_CONFIG_BASENAME}.json',
+        f'{LEGACY_CONFIG_BASENAME}.toml',
+        f'.{LEGACY_CONFIG_BASENAME}.json',
+        f'.{LEGACY_CONFIG_BASENAME}.toml',
+    ]
     for name in candidates:
         path = Path(name)
         if path.exists():
@@ -59,19 +77,177 @@ HELP_VERBOSE = 'Verbose output'
 HELP_INPUT = 'Input file or directory'
 HELP_OUTPUT = 'Output file or directory'
 DEFAULT_EXCLUDES = ['__pycache__', '*.pyc', 'test_*', '*_test.py']
-DEFAULT_LICENSE = 'Protected by PyObfuscator'
+DEFAULT_LICENSE = f'Protected by {PRODUCT_NAME}'
+
+
+@dataclass(frozen=True)
+class DirectoryObfuscationOptions:
+    """Normalized CLI options for one directory-processing command."""
+
+    verbose: bool
+    use_parallel: bool
+    workers: Optional[int]
+    recursive: bool
+    exclude_patterns: Optional[List[str]]
+
+    @classmethod
+    def from_namespace(cls, parsed: argparse.Namespace) -> 'DirectoryObfuscationOptions':
+        patterns = getattr(parsed, 'exclude_patterns', DEFAULT_EXCLUDES)
+        return cls(
+            verbose=getattr(parsed, 'verbose', False),
+            use_parallel=getattr(parsed, 'parallel', False),
+            workers=getattr(parsed, 'workers', None),
+            recursive=(
+                getattr(parsed, 'recursive', True)
+                and not getattr(parsed, 'no_recursive', False)
+            ),
+            exclude_patterns=list(patterns) if patterns is not None else None,
+        )
+
+
+@dataclass(frozen=True)
+class DirectoryProcessingResult:
+    """Directory outcomes and the exit-code policy derived from them."""
+
+    files: Mapping[str, str]
+    output_path: Path
+    encrypted: bool
+
+    @property
+    def success_count(self) -> int:
+        return sum(result == 'success' for result in self.files.values())
+
+    @property
+    def error_count(self) -> int:
+        return len(self.files) - self.success_count
+
+    @property
+    def exit_code(self) -> int:
+        return int(self.error_count > 0)
+
+    @property
+    def message_suffix(self) -> str:
+        return '(Code is encrypted with AES-256-GCM)' if self.encrypted else ''
+
+
+class DirectoryResultReporter:
+    """Render directory progress independently from processing decisions."""
+
+    @staticmethod
+    def print_start(
+        input_path: Path,
+        output_path: Path,
+        encrypted: bool,
+        options: DirectoryObfuscationOptions,
+    ) -> None:
+        if not options.verbose:
+            return
+        action = 'Protecting' if encrypted else 'Obfuscating'
+        parallel = DirectoryResultReporter._parallel_description(options)
+        print(f'{action} directory: {input_path}{parallel}')
+        print(f'Output directory: {output_path}\n')
+
+    @staticmethod
+    def _parallel_description(options: DirectoryObfuscationOptions) -> str:
+        if not options.use_parallel:
+            return ''
+        return f" (parallel, {options.workers or 'auto'} workers)"
+
+    def print_result(self, result: DirectoryProcessingResult, verbose: bool) -> None:
+        if verbose:
+            self._print_file_results(result.files)
+        self._print_summary(result)
+
+    @staticmethod
+    def _print_file_results(results: Mapping[str, str]) -> None:
+        print('\nResults:')
+        for file_path, outcome in sorted(results.items()):
+            DirectoryResultReporter._print_file_result(file_path, outcome)
+
+    @staticmethod
+    def _print_file_result(file_path: str, outcome: str) -> None:
+        status = '[OK]' if outcome == 'success' else '[FAIL]'
+        print(f'  {status} {file_path}')
+        if outcome != 'success':
+            print(f'        Error: {outcome}')
+
+    @staticmethod
+    def _print_summary(result: DirectoryProcessingResult) -> None:
+        print(f'\nProcessing complete! {result.message_suffix}')
+        print(f'  - Files processed: {result.success_count}')
+        print(f'  - Errors: {result.error_count}')
+        print(f'  - Output: {result.output_path}')
+
+
+class DirectoryObfuscationWorkflow:
+    """Coordinate directory processing through the selected backend."""
+
+    def __init__(
+        self,
+        obfuscator: Obfuscator,
+        input_path: Path,
+        output_path: Path,
+        options: DirectoryObfuscationOptions,
+        reporter: Optional[DirectoryResultReporter] = None,
+    ):
+        self._obfuscator = obfuscator
+        self._input_path = input_path
+        self._output_path = output_path
+        self._options = options
+        self._reporter = reporter or DirectoryResultReporter()
+
+    def run(self) -> int:
+        self._output_path.mkdir(parents=True, exist_ok=True)
+        encrypted = bool(self._obfuscator.config.get('encrypt_code'))
+        self._reporter.print_start(
+            self._input_path,
+            self._output_path,
+            encrypted,
+            self._options,
+        )
+        result = self._process(encrypted)
+        self._reporter.print_result(result, self._options.verbose)
+        return result.exit_code
+
+    def _process(self, encrypted: bool) -> DirectoryProcessingResult:
+        files = self._protect_directory() if encrypted else self._obfuscate_directory()
+        return DirectoryProcessingResult(files, self._output_path, encrypted)
+
+    def _protect_directory(self) -> Mapping[str, str]:
+        backend = self._native_backend() if self._uses_pyd_backend() else self._obfuscator
+        result = backend.protect_directory(
+            self._input_path,
+            self._output_path,
+            recursive=self._options.recursive,
+            exclude_patterns=self._options.exclude_patterns,
+        )
+        return result['files']
+
+    def _obfuscate_directory(self) -> Mapping[str, str]:
+        return self._obfuscator.obfuscate_directory(
+            self._input_path,
+            self._output_path,
+            recursive=self._options.recursive,
+            exclude_patterns=self._options.exclude_patterns,
+        )
+
+    def _uses_pyd_backend(self) -> bool:
+        return bool(self._obfuscator.config.get('use_pyd_compilation'))
+
+    def _native_backend(self) -> Any:
+        return self._obfuscator.runtime_protector
 
 
 def create_main_parser() -> argparse.ArgumentParser:
     """Create the main argument parser with subcommands."""
     parser = argparse.ArgumentParser(
-        prog='pyobfuscator',
+        prog=CLI_NAME,
         description='Python code obfuscation tool with auto-detection and framework support',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=_get_cli_epilog()
     )
 
-    parser.add_argument('--version', action='version', version='%(prog)s 2.0.0')
+    parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
     parser.add_argument('-i', '--input', help=f'{HELP_INPUT} (shortcut for obfuscate)')
     parser.add_argument('-o', '--output', help=f'{HELP_OUTPUT} (shortcut for obfuscate)')
     parser.add_argument('-v', '--verbose', action='store_true', help=HELP_VERBOSE)
@@ -90,12 +266,12 @@ def _get_cli_epilog() -> str:
 Commands:
   obfuscate   Obfuscate Python source code (default if -i/-o provided)
   analyze     Analyze a project and show detected frameworks/entry points
-  init        Generate a pyobfuscator.json config file for a project
+  init        Generate a skjol.json config file for a project
 
 Examples:
-  pyobfuscator init ./my_project
-  pyobfuscator obfuscate -i ./my_project -o ./dist
-  pyobfuscator -i script.py -o obfuscated.py
+  skjol init ./my_project
+  skjol obfuscate -i ./my_project -o ./dist
+  skjol -i script.py -o protected.py
         '''
 
 
@@ -261,7 +437,7 @@ def _obfuscate_single_file(
 
         # Write runtime module in the same directory
         runtime_id = obfuscator.runtime_protector.runtime_id
-        runtime_path = target_path.parent / f"pyobfuscator_runtime_{runtime_id}.py"
+        runtime_path = target_path.parent / f"{RUNTIME_MODULE_PREFIX}{runtime_id}.py"
         runtime_path.write_text(runtime, encoding='utf-8')
 
         if verbose:
@@ -297,56 +473,13 @@ def _obfuscate_directory(
     parsed: argparse.Namespace
 ) -> int:
     """Obfuscate a directory. Returns exit code."""
-    verbose = getattr(parsed, 'verbose', False)
-    use_parallel = getattr(parsed, 'parallel', False)
-    workers = getattr(parsed, 'workers', None)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    if verbose:
-        msg = "Protecting" if obfuscator.config.get('encrypt_code') else "Obfuscating"
-        parallel_msg = f" (parallel, {workers or 'auto'} workers)" if use_parallel else ""
-        print(f"{msg} directory: {input_path}{parallel_msg}")
-        print(f"Output directory: {output_path}\n")
-
-    recursive = getattr(parsed, 'recursive', True) and not getattr(parsed, 'no_recursive', False)
-    exclude_patterns = getattr(parsed, 'exclude_patterns', DEFAULT_EXCLUDES)
-
-    if obfuscator.config.get('encrypt_code'):
-        # Use protect_directory for full protection
-        results, _ = obfuscator.runtime_protector.protect_directory(
-            input_path,
-            output_path,
-            recursive=recursive,
-            exclude_patterns=exclude_patterns
-        )
-        msg_suffix = "(Code is encrypted with AES-256-GCM)"
-    else:
-        # Just obfuscation
-        results = obfuscator.obfuscate_directory(
-            input_path,
-            output_path,
-            recursive=recursive,
-            exclude_patterns=exclude_patterns
-        )
-        msg_suffix = ""
-
-    success_count = sum(1 for v in results.values() if v == "success")
-    error_count = len(results) - success_count
-
-    if verbose:
-        print("\nResults:")
-        for file_path, result in sorted(results.items()):
-            status = "[OK]" if result == "success" else "[FAIL]"
-            print(f"  {status} {file_path}")
-            if result != "success":
-                print(f"        Error: {result}")
-
-    print(f"\nProcessing complete! {msg_suffix}")
-    print(f"  - Files processed: {success_count}")
-    print(f"  - Errors: {error_count}")
-    print(f"  - Output: {output_path}")
-
-    return 1 if error_count > 0 else 0
+    options = DirectoryObfuscationOptions.from_namespace(parsed)
+    return DirectoryObfuscationWorkflow(
+        obfuscator,
+        input_path,
+        output_path,
+        options,
+    ).run()
 
 
 def _merge_config(parsed: argparse.Namespace, config: Dict[str, Any]) -> argparse.Namespace:
@@ -425,7 +558,7 @@ def _handle_init(parsed: argparse.Namespace) -> int:
         print(f"Error: Project path does not exist: {project_path}", file=sys.stderr)
         return 1
 
-    output_path = Path(parsed.output) if parsed.output else project_path / f'pyobfuscator.{parsed.format}'
+    output_path = Path(parsed.output) if parsed.output else project_path / f'{CONFIG_BASENAME}.{parsed.format}'
 
     if output_path.exists() and not parsed.force:
         print(f"Error: Config file already exists: {output_path}", file=sys.stderr)
@@ -456,7 +589,9 @@ def _handle_init(parsed: argparse.Namespace) -> int:
 
 def _handle_obfuscate(parsed: argparse.Namespace) -> int:
     """Handle the obfuscate command."""
-    config: Dict[str, Any] = _get_merged_config(parsed)
+    config = _get_merged_config(parsed)
+    if config is None:
+        return 1
     if config:
         parsed = _merge_config(parsed, config)
 
@@ -481,18 +616,23 @@ def _handle_obfuscate(parsed: argparse.Namespace) -> int:
         return 1
 
 
-def _get_merged_config(parsed: argparse.Namespace) -> Dict[str, Any]:
+def _get_merged_config(parsed: argparse.Namespace) -> Optional[Dict[str, Any]]:
     """Auto-detect and load config file."""
     if hasattr(parsed, 'config') and parsed.config:
         config_path = Path(parsed.config)
         if not config_path.exists():
             print(f"Error: Config file not found: {config_path}", file=sys.stderr)
-            return {}
+            return None
         return load_config(config_path)
     
     input_path = Path(parsed.input)
     if input_path.is_dir():
-        for name in ['pyobfuscator.json', 'pyobfuscator.toml']:
+        for name in [
+            f'{CONFIG_BASENAME}.json',
+            f'{CONFIG_BASENAME}.toml',
+            f'{LEGACY_CONFIG_BASENAME}.json',
+            f'{LEGACY_CONFIG_BASENAME}.toml',
+        ]:
             config_file = input_path / name
             if config_file.exists():
                 return load_config(config_file)

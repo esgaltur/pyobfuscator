@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Configuration presets for PyObfuscator.
+Configuration presets for Skjol.
 
 Provides pre-configured settings for common use cases.
 """

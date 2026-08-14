@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from pyobfuscator.runtime_protection import RuntimeProtector, protect
+from skjol import RuntimeProtector, protect
 
 
 def main():
@@ -154,7 +154,7 @@ if __name__ == "__main__":
         f.write(protected)
 
     # Write runtime module
-    runtime_file = output_dir / f"pyobfuscator_runtime_{protector.runtime_id}.py"
+    runtime_file = output_dir / f"skjol_runtime_{protector.runtime_id}.py"
     with open(runtime_file, 'w') as f:
         f.write(runtime)
 

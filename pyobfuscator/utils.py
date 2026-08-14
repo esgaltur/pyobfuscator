@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Utility functions for PyObfuscator.
+Utility functions for Skjol.
 """
 
 import hashlib
@@ -202,7 +202,7 @@ def generate_license_header(
     year = year or str(datetime.datetime.now().year)
 
     return f'''# -*- coding: utf-8 -*-
-# Protected by PyObfuscator
+# Protected by Skjol
 # Copyright (c) {year} {author}
 # Unauthorized copying or distribution is prohibited.
 

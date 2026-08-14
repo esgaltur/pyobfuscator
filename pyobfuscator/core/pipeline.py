@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Transformation pipeline for PyObfuscator.
+Transformation pipeline for Skjol.
 
 Provides a structured way to chain multiple transformations.
 """

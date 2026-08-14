@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Comprehensive test suite for PyObfuscator.
+Comprehensive test suite for Skjol.
 
 Tests cover:
 - Obfuscator (name, string, class, method, attribute obfuscation)
@@ -1150,8 +1150,7 @@ class TestRuntimeProtector:
         source = "x = 42"
         protected, runtime = protector.protect_source(source)
 
-        # RuntimeProtector uses __pyobfuscator__ (with 'r')
-        assert "__pyobfuscator__" in protected
+        assert "__skjol__" in protected
         assert len(runtime) > 0
 
     def test_custom_license_info(self):
@@ -1225,7 +1224,7 @@ class TestPydRuntimeProtector:
         source = "print('hello')"
         protected, pyx, setup = protector.protect_source(source, "test.py")
 
-        assert "__pyobfuscator__" in protected
+        assert "__skjol__" in protected
         assert "cython" in pyx.lower() or "cdef" in pyx
         assert "setup" in setup.lower()
 
@@ -1248,7 +1247,7 @@ class TestPydRuntimeProtector:
 
             assert runtime_path.exists()
             content = runtime_path.read_text()
-            assert "__pyobfuscator__" in content
+            assert "__skjol__" in content
             assert "_check_debugger" in content
 
 
@@ -1583,8 +1582,7 @@ def secret_function():
 
         # Protected code should have import and call
         assert "import" in protected or "from" in protected
-        # RuntimeProtector uses __pyobfuscator__ (with 'r')
-        assert "__pyobfuscator__" in protected
+        assert "__skjol__" in protected
 
         # Runtime should be substantial
         assert len(runtime) > 100

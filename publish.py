@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Release script for pyobfuscator package.
+Release script for the Skjol package.
 This script builds and publishes the package to PyPI or TestPyPI.
 
 Usage:
@@ -53,12 +53,12 @@ def publish_package(test=False):
         repository = "testpypi"
         url = "https://test.pypi.org/legacy/"
         print("\n📦 Publishing to TestPyPI...")
-        print("Install with: pip install --index-url https://test.pypi.org/simple/ pyobfuscator")
+        print("Install with: pip install --index-url https://test.pypi.org/simple/ skjol")
     else:
         repository = "pypi"
         url = "https://upload.pypi.org/legacy/"
         print("\n📦 Publishing to PyPI...")
-        print("Install with: pip install pyobfuscator")
+        print("Install with: pip install skjol")
 
     cmd = f"python -m twine upload dist/* --repository {repository}"
     if test:
@@ -81,7 +81,7 @@ def publish_package(test=False):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Build and publish pyobfuscator package")
+    parser = argparse.ArgumentParser(description="Build and publish the Skjol package")
     parser.add_argument(
         "--test",
         action="store_true",
@@ -101,7 +101,7 @@ def main():
     args = parser.parse_args()
 
     print("=" * 60)
-    print("🐍 PyObfuscator Package Release Script")
+    print("🐍 Skjol Package Release Script")
     print("=" * 60)
 
     # Check if we're in the right directory

@@ -1,6 +1,6 @@
-# PyObfuscator: Strategic Implementation Patterns
+# Skjol: Strategic Implementation Patterns
 
-This document outlines professional implementation patterns for PyObfuscator, mapping advanced features to real-world business and security requirements.
+This document outlines professional implementation patterns for Skjol, mapping advanced features to real-world business and security requirements.
 
 ## 1. Enterprise SaaS & On-Premise Licensing
 **Goal:** Prevent unauthorized redistribution and bypass of licensing checks in on-premise software.
@@ -51,7 +51,7 @@ Standard environment variables are often leaked via logs or process dumps. White
 - `RedTeamAnalyzer`: Use the built-in metrics tool to generate a "Resistance Report" for the research paper or audit.
 
 ### Why this works:
-PyObfuscator provides a reproducible platform for generating high-entropy code that mimics the techniques used by advanced persistent threats (APTs).
+Skjol provides a reproducible platform for generating high-entropy code that mimics the techniques used by advanced persistent threats (APTs).
 
 ---
 

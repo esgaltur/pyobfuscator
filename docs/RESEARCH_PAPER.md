@@ -9,7 +9,7 @@
 
 ## Abstract
 
-As high-value intellectual property (IP)—ranging from AI models to algorithmic trading strategies—increasingly migrates to interpreted environments like Python, the risk of unauthorized reverse engineering and IP theft has escalated. Traditional obfuscation techniques (e.g., lexical renaming) are insufficient against modern automated dynamic analysis and symbolic execution. This paper introduces **PyObfuscator v2.0.2**, a defense-in-depth framework that integrates **Instruction-Level Virtualization (ILV)** and **White-Box Cryptography (WBC)**. We demonstrate a novel architecture where sensitive logic is compiled into a randomized proprietary bytecode and executed within a software-defined virtual machine. Our evaluation using an automated adversarial suite shows a **Resistance Score of 0.87/1.0**, representing an 84% improvement over standard XOR-based protection, while maintaining a computational overhead of approximately **12%**.
+As high-value intellectual property (IP) increasingly moves to interpreted environments like Python, unauthorized analysis and copying remain practical risks. This paper introduces **Skjol v2.0.2**, a layered framework that includes **Instruction-Level Virtualization (ILV)** and **White-Box Cryptography (WBC)**. Sensitive logic can be translated to randomized bytecode and executed by a software-defined virtual machine. Current evaluation includes executable correctness tests, small synthetic performance workloads, source-level visibility heuristics, and a reproducible Python runtime-interposition attack. The attack recovered decrypted code and canaries in all 18 current trials. No universal attacker-resistance score or independent security validation is claimed.
 
 ---
 
@@ -17,11 +17,11 @@ As high-value intellectual property (IP)—ranging from AI models to algorithmic
 
 The dominance of Python in data science and backend engineering has created a critical security gap: the transparency of Python bytecode. Standard tools like `uncompyle6` and `Ghidra` can reconstruct high-level source code from distributed binaries with near-perfect fidelity. This transparency poses an existential threat to companies distributing proprietary logic on-premise or in untrusted cloud environments.
 
-Existing solutions often rely on simple "packing" or "encryption" which merely delays the attacker until the runtime key is extracted from memory. PyObfuscator v2.0.2 proposes a paradigm shift: **The code is the environment.** By virtualizing the instructions and baking the keys into the logic, we eliminate the binary "secret/non-secret" boundary.
+Existing solutions often rely on simple "packing" or "encryption" which merely delays the attacker until the runtime key is extracted from memory. Skjol v2.0.2 proposes a paradigm shift: **The code is the environment.** By virtualizing the instructions and baking the keys into the logic, we eliminate the binary "secret/non-secret" boundary.
 
 ## 2. Methodology: Multi-Barrier Defense
 
-PyObfuscator implements a hexagonal architecture comprising six distinct security layers:
+Skjol implements a hexagonal architecture comprising six distinct security layers:
 
 ### 2.1 Instruction-Level Virtualization (ILV)
 We implement a stack-based virtual machine (VM) within the Python runtime. The compiler transforms Abstract Syntax Tree (AST) nodes into a proprietary Instruction Set Architecture (ISA). 
@@ -44,19 +44,13 @@ We assume a **Tier 3 Adversary**:
 - Capability to perform dynamic instrumentation (Frida/X64dbg).
 - Access to symbolic execution engines (Z3/angr).
 
-### 3.2 Resistance Quantification
-We define the **Resistance Score ($R$)** as:
-$$R = w_1(1-IR) + w_2(1-SV) + w_3(CD/5)$$
-Where:
-- $IR$: Identifier Recovery Rate
-- $SV$: String Visibility Ratio
-- $CD$: Cyclomatic Dispersion (complexity increase)
+### 3.2 Development heuristics
 
-| Tier | Resistance Score | Automated Recovery |
-| :--- | :---: | :--- |
-| Lexical Only | 0.45 | Successful |
-| Polymorphic | 0.71 | Partially Blocked |
-| **PyObfuscator (ILV+WBC)** | **0.87** | **Failed** |
+The repository measures visible source strings, unchanged renameable
+identifiers, branch-node counts, and text entropy. These are regression signals,
+not probabilities of resisting an attacker. A previous aggregate formula used
+project-selected weights and a five-times branch threshold without empirical
+validation. Its numeric resistance scores have been withdrawn.
 
 ## 4. Experimental Evaluation
 
@@ -66,14 +60,20 @@ Testing across diverse workloads (Computational, IO-Bound, Recursive) yielded th
 - **Hardened Tier**: 1.05x (5% impact)
 - **Maximum Tier**: 1.15x (15% impact)
 
-The results prove that PyObfuscator is suitable for high-frequency trading and real-time backend systems where latency budgets are tight.
+These synthetic measurements do not establish suitability for a particular
+latency-sensitive production system. Users should benchmark their own workloads.
 
 ### 4.2 Semantic Verification
-Using **Property-Based Fuzzing** (Hypothesis), we verified 10,000 randomized AST permutations. In 100% of cases, the output of the obfuscated code matched the original logic, proving the framework's reliability as a security compiler.
+The test suite includes **Property-Based Testing** (Hypothesis) and CLI tests
+that execute generated artifacts. Passing tests provide regression evidence for
+the covered cases; they do not prove semantic equivalence for all Python programs.
 
 ## 5. Conclusion
 
-PyObfuscator v2.0.2 provides a scientifically rigorous framework for protecting Python code. By combining ILV and WBC, we raise the economic cost of reverse engineering beyond the value of the IP itself for most adversaries. Future research will focus on **Anti-LLM Obfuscation**, specifically designed to defeat AI-assisted code reconstruction.
+Skjol v2.0.2 combines multiple techniques intended to raise the cost of
+analyzing Python code. Establishing how much they impede specific adversaries
+requires broader reproducible experiments and independent review. Future work
+will strengthen the threat model, evaluation corpus, and adversarial testing.
 
 ---
 **Copyright © 2026 Dmitrij Sosnovic. Released under MIT License.**

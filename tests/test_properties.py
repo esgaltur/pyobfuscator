@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Property-based tests for PyObfuscator.
+Property-based tests for Skjol.
 Generates random Python-like code snippets and verifies they remain executable.
 """
 

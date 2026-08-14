@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from pyobfuscator.pyd_protection import PydRuntimeProtector
+from skjol import PydRuntimeProtector
 
 
 def create_sample_project(project_dir: Path) -> None:
@@ -81,7 +81,7 @@ def main():
         create_sample_project(project_dir)
 
         print("=" * 60)
-        print("PyObfuscator v2.0 - PYD Runtime Protection Example")
+        print("Skjol v2.0 - PYD Runtime Protection Example")
         print("=" * 60)
         print(f"Input:  {project_dir}")
         print(f"Output: {output_dir}")

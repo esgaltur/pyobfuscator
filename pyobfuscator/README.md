@@ -1,6 +1,6 @@
-# PyObfuscator
+# Skjol
 
-A comprehensive, **100% free and open source** Python code protection framework with enterprise-grade security.
+A free and open-source Python code protection framework with layered defenses.
 
 ## Features
 
@@ -51,14 +51,14 @@ pyobfuscator/
 ## Installation
 
 Clone the repository and install dependencies:
-```bash
-git clone https://github.com/esgaltur/pyobfuscator.git
-cd pyobfuscator
+```powershell
+git clone https://github.com/esgaltur/skjol.git
+cd skjol
 pip install -e .
 ```
 
 For PYD protection, install Cython:
-```bash
+```powershell
 pip install cython
 ```
 
@@ -66,27 +66,36 @@ pip install cython
 
 ### Command Line
 
-```bash
-# Obfuscate a single file
-python -m pyobfuscator -i script.py -o obfuscated.py
+```powershell
+# Obfuscate and encrypt a single file (the default protection pipeline)
+python -m skjol obfuscate -i script.py -o protected.py
 
-# Obfuscate a directory
-python -m pyobfuscator -i src/ -o dist/ --recursive
+# Obfuscate and encrypt a directory recursively
+python -m skjol obfuscate -i src -o dist
 
-# With compression
-python -m pyobfuscator -i script.py -o obfuscated.py --compress
+# Obfuscate without runtime encryption
+python -m skjol obfuscate -i script.py -o obfuscated.py --no-encrypt
+
+# Compress obfuscation-only output
+python -m skjol obfuscate -i script.py -o obfuscated.py --no-encrypt --compress
 
 # Using XOR for string obfuscation
-python -m pyobfuscator -i script.py -o obfuscated.py --string-method xor
+python -m skjol obfuscate -i script.py -o protected.py --string-method xor
 
 # Verbose output
-python -m pyobfuscator -i src/ -o dist/ -v
+python -m skjol obfuscate -i src -o dist -v
 ```
+
+Runtime-encrypted output imports a generated
+`skjol_runtime_<id>.py`. Keep that file in the same output directory as
+the protected script. Directory protection creates a matching runtime in each
+subdirectory that contains protected Python files, allowing nested entry points
+to run directly.
 
 ### Python API
 
 ```python
-from pyobfuscator import Obfuscator
+from skjol import Obfuscator
 
 # Create obfuscator with desired options
 obfuscator = Obfuscator(
@@ -156,6 +165,11 @@ results = obfuscator.obfuscate_directory(
 | `--string-method` | String obfuscation method |
 | `--exclude` | Names to exclude from renaming |
 | `--exclude-patterns` | File patterns to skip |
+| `--no-encrypt` | Apply AST obfuscation without runtime encryption |
+| `--no-anti-debug` | Disable runtime anti-debug checks |
+| `--code-virtualization` | Enable VM-based code transformation |
+| `--whitebox` | Enable white-box encryption support |
+| `--control-flow-flatten` | Enable control-flow flattening |
 | `-v, --verbose` | Show detailed output |
 
 ## Example
@@ -192,37 +206,38 @@ def _zX9pD():
 ### After PYD Protection (Encrypted Runtime)
 
 ```python
-# PyObfuscator 2.0.0 (PYD), abc123, Protected, 2026-03-01
-from pyobfuscator_runtime_abc123 import __pyobfuscator__
-__pyobfuscator__(__name__, __file__, b'UFlEMDAwMDEAA...')
+# Skjol 2.0.2 (PYD), abc123, Protected, 2026-03-01
+from skjol_runtime_abc123 import __skjol__
+__skjol__(__name__, __file__, b'UFlEMDAwMDEAA...')
 ```
 
 ## Running Examples
 
-```bash
+```powershell
 # Basic obfuscation demo
-python pyobfuscator/examples/demo.py
+python examples\demo.py
 
 # Runtime protection demo
-python pyobfuscator/examples/demo_runtime_protection.py
+python examples\demo_runtime_protection.py
 
 # PYD protection demo
-python pyobfuscator/examples/demo_pyd_protection.py
+python examples\demo_pyd_protection.py
 
 # Obfuscate a sample project (directory-level)
-python pyobfuscator/examples/obfuscate_project.py
+python examples\obfuscate_project.py
 
 # Protect a sample project (PYD runtime)
-python pyobfuscator/examples/protect_project.py
-
-# Run tests
-python pyobfuscator/examples/tests.py
+python examples\protect_project.py
 ```
 
 ## Running Tests
 
-```bash
-python pyobfuscator/tests.py
+The CLI protection tests generate real protected programs, execute them, and
+clean up through pytest's temporary-directory fixtures.
+
+```powershell
+python -m pytest -q tests\test_cli_protection.py
+python -m pytest -q
 ```
 
 ## Limitations
@@ -234,7 +249,7 @@ python pyobfuscator/tests.py
 
 ## Comparison with Commercial Solutions
 
-| Feature | PyObfuscator | Commercial Tools |
+| Feature | Skjol | Commercial Tools |
 |---------|-------------|------------------|
 | License | Free & Open Source | Paid |
 | Name obfuscation | ✓ | ✓ |
@@ -245,4 +260,6 @@ python pyobfuscator/tests.py
 | Machine binding | ✓ | ✓ |
 | Python 3.13+ | ✓ | Limited |
 
-PyObfuscator provides enterprise-grade protection without licensing restrictions.
+Skjol provides layered protection without licensing restrictions. Its output
+can still be recovered by a sufficiently capable attacker, so protection
+profiles should be selected using the documented threat model and tests.

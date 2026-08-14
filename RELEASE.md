@@ -1,6 +1,6 @@
-# Release Guide for PyObfuscator
+# Release Guide for Skjol
 
-This guide explains how to build and publish the pyobfuscator package to PyPI.
+This guide explains how to build and publish the `skjol` package to PyPI.
 
 ## Prerequisites
 
@@ -54,8 +54,8 @@ python -m twine upload dist/*
 ## Built Artifacts
 
 After building, you'll find in the `dist/` folder:
-- `pyobfuscator-{version}-py3-none-any.whl` - Wheel distribution
-- `pyobfuscator-{version}.tar.gz` - Source distribution
+- `skjol-{version}-py3-none-any.whl` - Wheel distribution
+- `skjol-{version}.tar.gz` - Source distribution
 
 ## Configuration File (.pypirc)
 
@@ -82,35 +82,32 @@ password = pypi-YOUR_TEST_API_TOKEN_HERE
 After uploading to TestPyPI:
 ```powershell
 # Install from TestPyPI
-pip install --index-url https://test.pypi.org/simple/ pyobfuscator
+pip install --index-url https://test.pypi.org/simple/ skjol
 
 # Test it works
-pyobfuscator --version
-python -c "import pyobfuscator; print(pyobfuscator.__version__)"
+skjol --version
+python -c "import skjol; print(skjol.__version__)"
 ```
 
 After uploading to PyPI:
 ```powershell
 # Install from PyPI
-pip install pyobfuscator
+pip install skjol
 
 # Test it works
-pyobfuscator --version
+skjol --version
 ```
 
 ## Version Management
 
-Update version in `pyproject.toml`:
-```toml
-[project]
-name = "pyobfuscator"
-version = "2.0.0"  # Update this
-```
+Update the single version source in `pyobfuscator/_version.py`. The
+`pyproject.toml` metadata reads it dynamically for both wheels and source
+distributions.
 
 ## Checklist Before Release
 
 - [ ] All tests pass: `pytest`
-- [ ] Version updated in `pyproject.toml`
+- [ ] Version updated in `pyobfuscator/_version.py`
 - [ ] CHANGELOG updated (if you have one)
 - [ ] README is up to date
 - [ ] All changes committed to git
@@ -148,4 +145,4 @@ To use it:
 
 ## Support
 
-For issues, visit: https://github.com/esgaltur/pyobfuscator/issues
+For issues, visit: https://github.com/esgaltur/skjol/issues

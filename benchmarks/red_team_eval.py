@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Red Team Security Resistance Evaluation.
+Source-obfuscation heuristic evaluation.
+
+This single fixture is useful for development comparisons only. It is not a
+security certification or a representative adversarial evaluation.
 """
 
 import json
-from pyobfuscator import Obfuscator
+from skjol import Obfuscator
 from pyobfuscator.analysis.red_team import RedTeamAnalyzer
 
 SOURCE = '''
@@ -40,7 +43,19 @@ def run_red_team_benchmark():
         }
     }
 
-    report = {}
+    report = {
+        "methodology": {
+            "fixture_count": 1,
+            "scope": "source-level static heuristics",
+            "limitations": [
+                "No dynamic analysis",
+                "No external attack tools",
+                "No independent validation",
+                "Results are not a measure of cryptographic strength",
+            ],
+        },
+        "tiers": {},
+    }
     
     for tier_name, config in tiers.items():
         print(f"Red Teaming Tier: {tier_name}...")
@@ -48,12 +63,12 @@ def run_red_team_benchmark():
         obfuscated = obf.obfuscate_source(SOURCE)
         
         analyzer = RedTeamAnalyzer(SOURCE, obfuscated)
-        report[tier_name] = analyzer.get_resistance_report()
+        report["tiers"][tier_name] = analyzer.get_heuristic_report()
 
     with open("benchmarks/security_resistance.json", "w") as f:
         json.dump(report, f, indent=2)
     
-    print("\nSecurity Resistance Report saved to benchmarks/security_resistance.json")
+    print("\nDevelopment heuristic report saved to benchmarks/security_resistance.json")
 
 if __name__ == "__main__":
     run_red_team_benchmark()

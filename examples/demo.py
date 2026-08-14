@@ -1,5 +1,5 @@
 """
-Demo script showing PyObfuscator in action.
+Demo script showing Skjol in action.
 """
 
 import sys
@@ -7,7 +7,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from pyobfuscator import Obfuscator
+from skjol import Obfuscator
 
 
 def main():

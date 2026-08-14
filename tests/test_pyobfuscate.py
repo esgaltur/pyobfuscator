@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Tests for PyObfuscator."""
+"""Tests for Skjol."""
 import pytest
 import sys
 import os
@@ -116,8 +116,8 @@ class TestRuntimeProtector:
         source = 'x = 42'
         protected, runtime = protector.protect_source(source)
 
-        assert '__pyobfuscator__' in protected
-        assert 'pyobfuscator_runtime_' in protected
+        assert '__skjol__' in protected
+        assert 'skjol_runtime_' in protected
         assert len(runtime) > 0
 
     def test_machine_id(self):
@@ -147,7 +147,7 @@ class TestRuntimeProtector:
         source = 'print("hello")'
         protected, _ = protector.protect_source(source, "test.py")
 
-        assert 'PyObfuscator' in protected
+        assert 'Skjol' in protected
         assert 'Test License' in protected
         assert 'import' in protected
 

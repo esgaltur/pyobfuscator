@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-Only the latest stable version of PyObfuscator receives security updates.
+Only the latest stable version of Skjol receives security updates.
 
 | Version | Supported          |
 | ------- | ------------------ |

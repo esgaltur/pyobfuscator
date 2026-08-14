@@ -1,4 +1,4 @@
-# PyObfuscator: A Multi-Layer Defense Framework for Python Code Protection
+# Skjol: A Multi-Layer Defense Framework for Python Code Protection
 
 **Version 2.0.2**
 
@@ -10,7 +10,7 @@
 
 ## Abstract
 
-This paper presents PyObfuscator v2.0.2, an open-source Python code protection framework that implements a defense-in-depth strategy through multiple complementary security layers. The framework combines Abstract Syntax Tree (AST) transformations, AES-256-GCM encryption, polymorphic runtime generation, **Instruction-Level Virtualization (ILV)**, and **White-Box Cryptography (WBC)**. PyObfuscator addresses the inherent challenges of protecting interpreted language code by creating a multi-barrier system where circumventing one protection mechanism does not compromise the entire defense. Experimental evaluation using a custom automated Red Teaming suite demonstrates a **Resistance Score of 0.87/1.0** while maintaining a performance overhead of **7-18%** across varied workloads.
+This paper presents Skjol v2.0.2, an open-source Python code protection framework that implements multiple complementary protection layers. The framework combines Abstract Syntax Tree (AST) transformations, AES-256-GCM encryption, polymorphic runtime generation, **Instruction-Level Virtualization (ILV)**, and **White-Box Cryptography (WBC)**. Skjol raises the effort required to inspect protected Python programs, but it does not make recoverable code impossible to analyze. The repository contains preliminary performance measurements, source-level heuristics, and a reproducible Python runtime-interposition attack. None constitutes an independent security evaluation.
 
 **Keywords:** Code obfuscation, reverse engineering protection, AST transformation, bytecode encryption, anti-debugging, polymorphic code generation, software protection
 
@@ -28,7 +28,7 @@ Python's interpreted nature and bytecode accessibility make it inherently vulner
 
 ### 1.2 Threat Model
 
-PyObfuscator is designed to protect against the following adversaries:
+Skjol is designed to protect against the following adversaries:
 
 1. **Casual Reverse Engineers**: Users attempting to bypass licensing or extract algorithms using standard decompilation tools
 2. **Intermediate Analysts**: Adversaries with debugging tools (PyCharm debugger, pdb, debugpy)
@@ -50,7 +50,7 @@ The framework was designed with the following objectives:
 
 ## 2. Architecture Overview
 
-PyObfuscator implements a layered defense architecture:
+Skjol implements a layered defense architecture:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -129,7 +129,7 @@ exec(__import__('zlib').decompress(__import__('base64').b64decode(b'...')))
 
 #### 3.2.1 Encryption Algorithm
 
-PyObfuscator employs AES-256-GCM (Galois/Counter Mode) for authenticated encryption:
+Skjol employs AES-256-GCM (Galois/Counter Mode) for authenticated encryption:
 
 - **Key Size**: 256 bits (32 bytes)
 - **Nonce Size**: 96 bits (12 bytes)
@@ -556,18 +556,34 @@ We conducted an empirical study using four distinct computational workloads. The
 | Hardened (CFF + WBC) | 1.07x | 1.05x | 1.05x | 1.04x | **~1.05x** |
 | Maximum (VM + All) | 1.07x | 1.10x | 1.18x | 1.15x | **~1.12x** |
 
-**Research Insight:** The instruction-level virtualization layer adds a predictable ~15% overhead to complex call stacks (Recursive/OO), which is an order of magnitude more efficient than commercial virtualization obfuscators that can exceed 300% overhead.
+**Measurement limitation:** These results are from small synthetic workloads in
+one stored run. They should not be generalized to production applications or
+compared with other products without repeating the same workload and environment.
 
-### 7.2 Red Team Resistance Metrics
+### 7.2 Source-level evaluation heuristics
 
-To quantify security, we developed an automated adversary suite that attempts to recover original program semantics from protected outputs.
+The included analyzer compares original and transformed source for visible
+strings, unchanged renameable identifiers, branch-node counts, and text
+entropy. These measurements can detect regressions between builds, but they do
+not simulate dynamic extraction, debugger-assisted recovery, runtime key
+capture, or a skilled reverse engineer.
 
-| Metric | Basic Tier | Hardened Tier | Maximum Tier |
-|:---|:---:|:---:|:---:|
-| **Resistance Score** | 0.71 | 0.81 | **0.87** |
-| **Complexity Dispersion** | 1.0x | 3.5x | **5.0x** |
-| **Identifier Recovery** | 16% | 8% | **< 5%** |
-| **String Entropy** | 4.2 | 4.8 | **5.1** |
+An earlier version combined three measurements with project-chosen weights and
+reported `0.87/1.0` from one small fixture. The normalization threshold and
+weights had no validated relationship to attacker success, and the same stored
+run reported 16.7% identifier recovery. The aggregate resistance score and the
+unsupported `<10%` claim have therefore been withdrawn.
+
+### 7.3 Reproducible runtime extraction
+
+A black-box evaluation now protects three fixtures with the default and
+hardened profiles, verifies normal execution, searches the distributed Python
+files, and interposes `eval`, `marshal.loads`, and `exec` during execution. In
+the current three-trial run, static search recovered 0/18 canaries, while the
+dynamic attack captured decrypted code objects and canaries in 18/18 artifacts.
+This result demonstrates that authenticated encryption protects payloads at
+rest but cannot by itself prevent extraction in an attacker-controlled Python
+process. See `docs/SECURITY_EVALUATION.md` for scope and limitations.
 
 ### 7.3 Protection Size Overhead (Bloat)
 
@@ -583,7 +599,7 @@ To quantify security, we developed an automated adversary suite that attempts to
 
 ### 8.1 Commercial Comparison
 
-| Feature | PyObfuscator v2.0.2 | PyArmor | Nuitka |
+| Feature | Skjol v2.0.2 | PyArmor | Nuitka |
 |:---|:---:|:---:|:---:|
 | **Instruction Virtualization** | ✓ (Randomized ISA) | ✓ (Fixed) | ✗ |
 | **White-Box Crypto** | ✓ (LUT-based) | ✗ | ✗ |
@@ -604,7 +620,11 @@ To quantify security, we developed an automated adversary suite that attempts to
 
 ## 10. Conclusion
 
-PyObfuscator v2.0.2 achieves a new benchmark in open-source Python security by integrating Instruction-Level Virtualization and White-Box Cryptography. Our research proves that a high resistance score (0.87) can be achieved with a modest performance budget (~12% avg overhead). By quantifying security through automated Red Teaming, we provide a transparent, principal-grade framework for protecting high-value intellectual property in Python ecosystems.
+Skjol v2.0.2 combines several techniques intended to increase the cost of
+analyzing protected Python programs. The present benchmarks are preliminary and
+do not prove resistance to a capable attacker. Future evaluation should use a
+published threat model, representative fixtures, repeatable attack procedures,
+raw results, and independent review.
 
 ---
 

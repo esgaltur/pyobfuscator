@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-PyObfuscator - A Python code obfuscation library
+Skjol - A Python code protection library
 
 Advanced, production-grade Python obfuscation tool.
 """
 
+from ._version import __version__
 from .obfuscator import Obfuscator
 from .core.transformers.name_transformer import NameGenerator
 from .runtime_protection import RuntimeProtector, protect
@@ -49,6 +50,7 @@ from .constants import (
 # Exceptions
 from .exceptions import (
     PyObfuscatorError,
+    SkjolError,
     SourceCodeError,
     EmptySourceError,
     InvalidSyntaxError,
@@ -70,9 +72,8 @@ from .config import (
     get_preset,
 )
 
-__version__ = "2.0.1"
-
 __all__ = [
+    "__version__",
     "Obfuscator",
     "NameGenerator",
     "TransformerRegistry",
@@ -100,6 +101,7 @@ __all__ = [
     "BuiltinObfuscator",
     "IntegrityTransformer",
     "PyObfuscatorError",
+    "SkjolError",
     "SourceCodeError",
     "EmptySourceError",
     "InvalidSyntaxError",

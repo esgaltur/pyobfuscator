@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Configuration builder for PyObfuscator.
+Configuration builder for Skjol.
 
 Implements the Builder pattern for constructing Obfuscator configurations.
 This provides a fluent API for setting up obfuscation options.

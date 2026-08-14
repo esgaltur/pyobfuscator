@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-File utility functions for PyObfuscator.
+File utility functions for Skjol.
 
 Contains functions for file operations, hashing, and finding Python files.
 """

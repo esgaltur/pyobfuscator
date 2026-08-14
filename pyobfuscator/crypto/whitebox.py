@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-White-Box Cryptography Engine for PyObfuscator.
+White-Box Cryptography Engine for Skjol.
 
 Implements a Look-Up Table (LUT) based symmetric encryption where the key 
 is baked into the algorithm's state transitions.

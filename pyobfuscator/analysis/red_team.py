@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Red Team Security Metrics for PyObfuscator.
+Red Team Security Metrics for Skjol.
 
-Quantifies the resistance of obfuscated code against automated static analysis.
+Provides development heuristics for comparing transformed source files.
+
+These measurements are not a cryptographic strength estimate, an adversarial
+success probability, or an independently validated security score.
 """
 
 import ast
+import builtins
 import math
 import re
 from typing import Dict, Any, List, Set
@@ -34,38 +38,43 @@ class RedTeamAnalyzer:
         return entropy
 
     def analyze_identifier_recovery(self) -> Dict[str, Any]:
-        """Checks how many original identifiers still exist in the output."""
+        """Measure how many renameable original identifiers remain visible."""
         original_names = {node.id for node in ast.walk(self.original_tree) if isinstance(node, ast.Name)}
         obfuscated_names = {node.id for node in ast.walk(self.obfuscated_tree) if isinstance(node, ast.Name)}
-        
-        leaked_names = original_names.intersection(obfuscated_names)
-        # Filter out builtins/common names that shouldn't be renamed
-        real_leaks = {n for n in leaked_names if len(n) > 3}
-        
-        recovery_rate = len(real_leaks) / len(original_names) if original_names else 0
+
+        builtin_names = set(dir(builtins))
+        candidate_names = {
+            name for name in original_names
+            if len(name) > 3 and name not in builtin_names
+        }
+        recovered_names = candidate_names.intersection(obfuscated_names)
+        recovery_rate = len(recovered_names) / len(candidate_names) if candidate_names else 0.0
         
         return {
             "recovery_rate": recovery_rate,
-            "leaked_identifiers": list(real_leaks),
-            "score": 1.0 - recovery_rate
+            "recovered_identifiers": sorted(recovered_names),
+            "candidate_identifiers": len(candidate_names),
         }
 
     def analyze_string_visibility(self) -> Dict[str, Any]:
         """Checks if original sensitive strings are visible in plain text."""
-        original_strings = {node.value for node in ast.walk(self.original_tree) 
-                           if isinstance(node, ast.Constant) and isinstance(node.value, str)}
+        original_strings = {
+            node.value for node in ast.walk(self.original_tree)
+            if isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and len(node.value) > 5
+        }
         
-        found_strings = []
-        for s in original_strings:
-            if len(s) > 5 and s in self.obfuscated_source:
-                found_strings.append(s)
-                
-        leak_ratio = len(found_strings) / len(original_strings) if original_strings else 0
+        found_strings = sorted(
+            value for value in original_strings if value in self.obfuscated_source
+        )
+
+        leak_ratio = len(found_strings) / len(original_strings) if original_strings else 0.0
         
         return {
             "plain_text_leaks": found_strings,
             "leak_ratio": leak_ratio,
-            "score": 1.0 - leak_ratio
+            "candidate_strings": len(original_strings),
         }
 
     def analyze_structural_complexity(self) -> Dict[str, Any]:
@@ -87,26 +96,26 @@ class RedTeamAnalyzer:
             "original_complexity": orig_comp,
             "obfuscated_complexity": obf_comp,
             "dispersion_factor": dispersion,
-            "score": min(1.0, dispersion / 5.0) # Normalized score (5x complexity is "perfect")
         }
 
-    def get_resistance_report(self) -> Dict[str, Any]:
-        """Generates a full Red Team Resistance Report."""
+    def get_heuristic_report(self) -> Dict[str, Any]:
+        """Generate source-level measurements with explicit limitations."""
         id_metrics = self.analyze_identifier_recovery()
         str_metrics = self.analyze_string_visibility()
         flow_metrics = self.analyze_structural_complexity()
         
-        # Weighted Security Score
-        total_score = (
-            id_metrics["score"] * 0.4 +
-            str_metrics["score"] * 0.4 +
-            flow_metrics["score"] * 0.2
-        )
-        
         return {
-            "overall_resistance_score": total_score,
+            "report_type": "development_heuristics",
+            "warning": (
+                "These source-level heuristics do not measure security strength "
+                "or resistance to a capable attacker."
+            ),
             "identifier_protection": id_metrics,
             "string_protection": str_metrics,
             "control_flow_protection": flow_metrics,
             "entropy": self.calculate_entropy(self.obfuscated_source)
         }
+
+    def get_resistance_report(self) -> Dict[str, Any]:
+        """Compatibility alias for :meth:`get_heuristic_report`."""
+        return self.get_heuristic_report()

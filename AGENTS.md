@@ -2,9 +2,9 @@
 
 ## Project Overview
 
-**PyObfuscator** - A Python code protection tool featuring obfuscation, encryption, and runtime protection.
+**Skjol** - A Python code protection tool featuring obfuscation, encryption, and runtime protection.
 
-**Repository**: https://github.com/esgaltur/pyobfuscator.git  
+**Repository**: https://github.com/esgaltur/skjol.git
 **Branch**: main
 
 ---
@@ -75,7 +75,8 @@ Remove-Item temp_output.txt
 ### Directory Structure
 
 ```
-pyobfuscator/        # Source code
+skjol/               # Public API and module entry point
+pyobfuscator/        # Legacy-compatible implementation package
 tests/               # Test suites
 ├── test_e2e_integration.py    # E2E integration tests
 ├── test_cli_*.py              # CLI-based tests
@@ -90,8 +91,8 @@ tests/               # Test suites
 Tests should invoke the tool **as end users would** - through CLI flags, not internal APIs.
 
 ```powershell
-# Example: Full protection pipeline
-python -m pyobfuscator --obfuscate --encrypt --protect <target>
+# Example: Default obfuscation and encrypted runtime protection
+python -m skjol obfuscate -i .\app.py -o .\dist\app.py
 ```
 
 ### Test Scenarios
@@ -111,10 +112,11 @@ python -m pyobfuscator --obfuscate --encrypt --protect <target>
 
 | Flag | Purpose |
 |------|---------|
-| `--obfuscate` | Apply variable/code obfuscation |
-| `--encrypt` | Encrypt code with runtime decryption |
-| `--protect` | Enable RuntimeProtector features |
-| `--output` | Specify output path |
+| `obfuscate` | Run the protection pipeline |
+| `--no-encrypt` | Apply transformations without runtime encryption |
+| `--no-anti-debug` | Disable anti-debug checks for compatible environments |
+| `-i`, `--input` | Specify input file or directory |
+| `-o`, `--output` | Specify output path |
 
 ---
 

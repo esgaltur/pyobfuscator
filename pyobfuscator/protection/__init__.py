@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Protection module for PyObfuscator.
+Protection module for Skjol.
 
 Contains runtime protection, PYD protection, and anti-debug components.
 """

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-High-Assurance Security Auditor for PyObfuscator.
+High-Assurance Security Auditor for Skjol.
 
 Generates structured evidence of security integrity, cryptographic compliance,
 and resistance to automated de-obfuscation tools.
@@ -14,6 +14,8 @@ import hashlib
 from pathlib import Path
 from typing import Dict, Any
 
+from .._version import __version__
+
 class SecurityAuditor:
     """
     Automated auditor that produces a comprehensive Security Proof Report.
@@ -22,7 +24,7 @@ class SecurityAuditor:
     def __init__(self, project_root: str = "."):
         self.root = Path(project_root)
         self.report = {
-            "version": "2.0.2",
+            "version": __version__,
             "audit_timestamp": "",
             "static_analysis": {},
             "cryptographic_inventory": {},
@@ -62,23 +64,24 @@ class SecurityAuditor:
         }
 
     def verify_deobfuscation_resistance(self) -> Dict[str, Any]:
-        """Tests output against standard industry de-obfuscation tools."""
-        # Note: In a production CI, we would attempt to run uncompyle6 here
-        # and document the 'Failure to Parse' or 'Garbage Output' state.
+        """Describe adversarial checks that still need an executable harness."""
         return {
             "tool_tests": [
-                {"tool": "uncompyle6", "target": "encrypted_bytecode", "result": "FAILURE_TO_READ_MAGIC"},
-                {"tool": "decompyle3", "target": "virtualized_logic", "result": "RECOVERED_EMPTY_STUB"},
-                {"tool": "binwalk", "target": "whitebox_payload", "result": "HIGH_ENTROPY_NO_SIGNATURE"}
+                {"tool": "uncompyle6", "target": "encrypted_bytecode", "result": "NOT_RUN"},
+                {"tool": "decompyle3", "target": "virtualized_logic", "result": "NOT_RUN"},
+                {"tool": "binwalk", "target": "protected_payload", "result": "NOT_RUN"},
             ],
-            "conclusion": "Automated recovery tools fail due to proprietary VM and lack of valid Python co_code."
+            "conclusion": (
+                "No adversarial conclusion is available until these tools are "
+                "run by a reproducible harness against versioned fixtures."
+            ),
         }
 
     def generate_proof_markdown(self, report_data: Dict[str, Any]):
         """Generates a professional Markdown report for developers."""
-        md = f"""# PyObfuscator Security Assurance Report
+        md = f"""# Skjol Security Assurance Report
 **Version:** {report_data['version']}
-**Audit Status:** VERIFIED
+**Audit Status:** DEVELOPMENT CHECKS ONLY
 
 ## 1. Static Security Analysis (Bandit)
 - **Status:** {report_data['static_analysis'].get('score')}
@@ -93,15 +96,20 @@ class SecurityAuditor:
 | **Entropy** | os.urandom | CSPRNG |
 | **Decryption** | White-Box (LUT) | Proprietary |
 
-## 3. Adversary Resistance Proofs
-| Attack Tool | Observed Behavior | Security Invariant |
-| :--- | :--- | :--- |
-| `uncompyle6` | Exception: Unknown Magic | Bytecode is encrypted |
-| `decompyle3` | Recovers placeholder only | Logic is virtualized |
-| `Ghidra` | High Entropy / No Strings | White-Box + Polmorphism |
+## 3. Adversarial Evaluation Status
+
+The repository includes a reproducible Python-level extraction harness at
+`benchmarks/security_evaluation.py`. Its versioned JSON report records the
+environment, fixtures, profiles, artifact hashes, raw outcomes, and limitations.
+
+External decompilers, native-runtime extraction, OS-level memory dumping, and
+human reverse-engineering effort are not yet measured. No claim that those
+attacks are blocked is made.
 
 ## 4. Integrity Proofs
-Every build of PyObfuscator is verified via a **Semantic Fuzzing Suite** (Hypothesis) ensuring that transformations never alter the underlying mathematical logic of the application.
+The test suite includes property-based and executable CLI cases. These tests
+cover specific supported behavior and do not prove equivalence for every valid
+Python program.
 
 ---
 *This report is generated automatically by the High-Assurance Security Auditor.*

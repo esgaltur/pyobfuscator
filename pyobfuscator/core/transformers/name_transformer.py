@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Name obfuscation transformer for PyObfuscator.
+Name obfuscation transformer for Skjol.
 
 Provides capabilities for renaming variables, functions, classes,
 and attributes with cross-file consistency.

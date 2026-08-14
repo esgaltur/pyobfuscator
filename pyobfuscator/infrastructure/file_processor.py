@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-File processor infrastructure for PyObfuscator.
+File processor infrastructure for Skjol.
 
 Handles file system operations, globbing, and reading/writing source files.
 """

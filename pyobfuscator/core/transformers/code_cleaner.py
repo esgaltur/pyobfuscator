@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Code cleaning and compression for PyObfuscator.
+Code cleaning and compression for Skjol.
 
 Provides techniques for removing metadata and compressing source code.
 """

@@ -31,13 +31,13 @@ jobs:
         pip install .[all,dev]
 
     - name: Lint with Flake8
-      run: flake8 pyobfuscator tests --count --select=E9,F63,F7,F82 --show-source --statistics
+      run: flake8 skjol pyobfuscator tests --count --select=E9,F63,F7,F82 --show-source --statistics
 
     - name: Type check with Mypy
-      run: mypy pyobfuscator
+      run: mypy skjol pyobfuscator
 
     - name: Security scan with Bandit
-      run: bandit -r pyobfuscator -ll
+      run: bandit -r skjol pyobfuscator -ll
 
     - name: Run Tests (including Architecture and Property-based)
       run: pytest tests/ --cov=pyobfuscator --cov-report=xml

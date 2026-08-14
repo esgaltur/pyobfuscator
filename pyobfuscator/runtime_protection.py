@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Runtime Protection Module for PyObfuscator.
+Runtime Protection Module for Skjol.
 
 This creates encrypted Python files that require a runtime module to execute.
 The code is compiled to bytecode, encrypted, and wrapped in a loader.
@@ -32,10 +32,11 @@ import sys
 import zlib
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Any, List
+from typing import Optional, Tuple, Dict, Any, List, Callable
 
+from ._version import __version__
 from .crypto import CryptoEngine, get_machine_id, WhiteBoxEngine
-from .constants import RuntimeConstants
+from .constants import PRODUCT_NAME, RUNTIME_ENTRY_POINT, RUNTIME_MODULE_PREFIX, RuntimeConstants
 
 class VM:
     # Advanced virtualization: randomized opcodes, stack-based, self-modifying, anti-analysis
@@ -138,7 +139,7 @@ class RuntimeProtector:
 
     def __init__(
         self,
-        license_info: str = "PyObfuscator Runtime Protection",
+        license_info: str = "Skjol Runtime Protection",
         encryption_key: Optional[bytes] = None,
         expiration_date: Optional[datetime] = None,
         allowed_machines: Optional[List[str]] = None,
@@ -180,7 +181,8 @@ class RuntimeProtector:
 
         # Generate unique polymorphic seeds for this runtime
         self._poly_seed = secrets.token_hex(8)
-        self._junk_seed = random.randint(1000, 9999)
+        # Cosmetic identifier only; it is emitted in plaintext and is not a key, nonce, or token.
+        self._junk_seed = random.randint(1000, 9999)  # NOSONAR
 
     @staticmethod
     def get_machine_id() -> str:
@@ -313,10 +315,10 @@ class RuntimeProtector:
 
         payload_str = "b'" + encoded_payload + "'"
 
-        return f'''# PyObfuscator 2.0.0, {self.runtime_id}, {self.license_info}, {timestamp}
+        return f'''# {PRODUCT_NAME} {__version__}, {self.runtime_id}, {self.license_info}, {timestamp}
 # Source: {safe_filename}
-from pyobfuscator_runtime_{self.runtime_id} import __pyobfuscator__
-__pyobfuscator__(__name__, __file__, {payload_str})
+from {RUNTIME_MODULE_PREFIX}{self.runtime_id} import {RUNTIME_ENTRY_POINT}
+{RUNTIME_ENTRY_POINT}(__name__, __file__, {payload_str})
 '''
 
     def _create_runtime_module(self) -> str:
@@ -416,7 +418,8 @@ __pyobfuscator__(__name__, __file__, {payload_str})
         junk_code = '\n'.join(junk_snippets)
 
         # Generate blinded constants (hide magic numbers)
-        blind_key = random.randint(0x10000000, 0x7FFFFFFF)
+        # This reversible mask is embedded in the output; cryptographic unpredictability is not required.
+        blind_key = random.randint(0x10000000, 0x7FFFFFFF)  # NOSONAR
         blinded_16 = 16 ^ blind_key
 
         # Generate watermark (hidden identifier for tracking leaks)
@@ -437,7 +440,7 @@ __pyobfuscator__(__name__, __file__, {payload_str})
             wbc_raw = self.wbc.wba.generate_python_decoder()
             wbc_decoder_code = wbc_raw.replace("_wbc_decrypt", v['wdec'])
 
-        return f'''# PyObfuscator Runtime - {self.runtime_id}  # nosec: B608
+        return f'''# {PRODUCT_NAME} Runtime - {self.runtime_id}  # nosec: B608
 # {secrets.token_hex(16)}
 import base64 as {v['b64']}
 import hashlib as {v['hl']}
@@ -674,7 +677,14 @@ def {v['ap']}():
             with open(_src, 'rb') as _f:
                 _content = _f.read()
             # Check for common patching signatures
-            _patches = [b'import pdb', b'breakpoint()', b'print(key', b'print(_k']
+            # Assemble signatures at runtime so this detector does not match
+            # the signature definitions in its own source file.
+            _patches = [
+                b'import ' + b'pdb',
+                b'break' + b'point()',
+                b'print(' + b'key',
+                b'print(' + b'_k',
+            ]
             for _p in _patches:
                 if _p in _content.lower():
                     return False
@@ -705,11 +715,11 @@ def {v['csv']}():
 # ============== COMPLEX CODE VIRTUALIZATION ENGINE ==============
 # Stack-based VM with randomized opcodes, self-modifying code, and anti-analysis
 
-class VM:
+class {v['vm']}:
     # Advanced virtualization: randomized opcodes, stack-based, self-modifying, anti-analysis
     
     # Randomized opcode table (generated at runtime creation)
-    _OPMAP = {
+    _OPMAP = {{
         # Stack operations
         0x01: 'PUSH',
         0x02: 'POP',
@@ -749,13 +759,13 @@ class VM:
         0xF1: 'MUTATE',
         0xF2: 'CHECK',
         0xF3: 'TRAP',
-    }
+    }}
     
-    _REVMAP = {v: k for k, v in _OPMAP.items()}
+    _REVMAP = dict(zip(_OPMAP.values(), _OPMAP.keys()))
     
     def __init__(self):
         self._stk = []
-        self._mem = bytearray(4096)
+        self._mem = [0] * 4096
         self._cstk = []
         self._pc = 0
         self._dat = bytearray()
@@ -879,8 +889,8 @@ class VM:
                 _addr = self._po()
                 self._pu(self._mem[_addr] if _addr < len(self._mem) else 0)
             elif _nm == 'STORE':
-                _addr, _val = self._po(), self._po()
-                if _addr < len(self._mem): self._mem[_addr] = _val & 0xFF
+                _val, _addr = self._po(), self._po()
+                if _addr < len(self._mem): self._mem[_addr] = _val & 0xFFFFFFFF
             elif _nm == 'LOADB':
                 _idx = self._po()
                 self._pu(self._dat[_idx] if _idx < len(self._dat) else 0)
@@ -1100,7 +1110,7 @@ def {v['nl']}(_url, _mid, _lid):
     except:
         return True  # Allow offline usage if server unreachable
 
-def __pyobfuscator__(_nm, _fl, _pl):
+def {RUNTIME_ENTRY_POINT}(_nm, _fl, _pl):
     # Initialize state machine
     {v['sm']}.reset()
     {v['sm']}.next(1)  # State: initialization
@@ -1230,7 +1240,12 @@ def __pyobfuscator__(_nm, _fl, _pl):
         _cc_hash = {v['cc']}['verify'](_cc_hash, {v['hl']}.sha256(_bc[:64] if len(_bc) > 64 else _bc).hexdigest()[:8])
         
         _co = {v['ml']}.loads(_bc)
-        _gl = {{'__name__': _nm, '__file__': _fl, '__builtins__': __builtins__}}
+        _gl = {{
+            '__name__': _nm,
+            '__file__': _fl,
+            '__builtins__': __builtins__,
+            '_SkjolVM': {v['vm']},
+        }}
         
         # Register with import hook for nested imports
         {v['ih']}.register(_nm, _co, _gl)
@@ -1252,7 +1267,8 @@ def __pyobfuscator__(_nm, _fl, _pl):
         self,
         input_path: Path,
         output_dir: Path,
-        create_runtime: bool = True
+        create_runtime: bool = True,
+        source_transform: Optional[Callable[[str], str]] = None,
     ) -> Dict[str, Path]:
         """
         Protect a Python file.
@@ -1261,6 +1277,7 @@ def __pyobfuscator__(_nm, _fl, _pl):
             input_path: Path to the source file
             output_dir: Directory for output files
             create_runtime: Whether to create the runtime module
+            source_transform: Optional transformation applied before encryption
 
         Returns:
             Dict with paths to created files
@@ -1272,6 +1289,9 @@ def __pyobfuscator__(_nm, _fl, _pl):
         # Read source
         with open(input_path, 'r', encoding='utf-8') as f:
             source = f.read()
+
+        if source_transform is not None:
+            source = source_transform(source)
 
         # Protect
         protected, runtime = self.protect_source(source, str(input_path))
@@ -1285,7 +1305,7 @@ def __pyobfuscator__(_nm, _fl, _pl):
 
         # Write runtime module
         if create_runtime:
-            runtime_path = output_dir / f'pyobfuscator_runtime_{self.runtime_id}.py'
+            runtime_path = output_dir / f'{RUNTIME_MODULE_PREFIX}{self.runtime_id}.py'
             with open(runtime_path, 'w', encoding='utf-8') as f:
                 f.write(runtime)
             result['runtime'] = runtime_path
@@ -1313,7 +1333,7 @@ def __pyobfuscator__(_nm, _fl, _pl):
             return False
 
         import shutil
-        runtime_name = f'pyobfuscator_runtime_{self.runtime_id}.py'
+        runtime_name = f'{RUNTIME_MODULE_PREFIX}{self.runtime_id}.py'
         runtime_dest = output_dir / runtime_name
         if file_result['runtime'] != runtime_dest:
             shutil.copy2(file_result['runtime'], runtime_dest)
@@ -1325,7 +1345,8 @@ def __pyobfuscator__(_nm, _fl, _pl):
         input_dir: Path,
         output_dir: Path,
         recursive: bool = True,
-        exclude_patterns: Optional[list] = None
+        exclude_patterns: Optional[list] = None,
+        source_transform: Optional[Callable[[str], str]] = None,
     ) -> Dict[str, Any]:
         """Protect all Python files in a directory."""
         input_dir = Path(input_dir)
@@ -1334,7 +1355,7 @@ def __pyobfuscator__(_nm, _fl, _pl):
 
         results: Dict[str, Any] = {'files': {}, 'runtime': None}
         pattern = '**/*.py' if recursive else '*.py'
-        runtime_created = False
+        runtime_directories = set()
 
         for py_file in input_dir.glob(pattern):
             relative = py_file.relative_to(input_dir)
@@ -1344,17 +1365,19 @@ def __pyobfuscator__(_nm, _fl, _pl):
 
             try:
                 out_subdir = output_dir / relative.parent
+                create_runtime = out_subdir not in runtime_directories
                 file_result = self.protect_file(
                     py_file,
                     out_subdir,
-                    create_runtime=not runtime_created
+                    create_runtime=create_runtime,
+                    source_transform=source_transform,
                 )
                 results['files'][str(relative)] = 'success'
 
-                if not runtime_created:
-                    runtime_created = self._copy_runtime_to_output(
-                        file_result, output_dir, results
-                    )
+                if create_runtime:
+                    runtime_directories.add(out_subdir)
+                    if results['runtime'] is None:
+                        self._copy_runtime_to_output(file_result, output_dir, results)
 
             except Exception as e:
                 results['files'][str(relative)] = f'error: {e}'

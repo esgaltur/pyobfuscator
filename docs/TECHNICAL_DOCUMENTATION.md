@@ -1,4 +1,4 @@
-# PyObfuscator: Technical Documentation and Scientific Basis
+# Skjol: Technical Documentation and Scientific Basis
 
 **A Comprehensive Analysis of Multi-Layer Code Protection Techniques**
 
@@ -46,7 +46,7 @@ While v1.0 focused on static obfuscation and runtime encryption, v2.0 addresses 
 
 **Definition 4.1.1:** A polymorphic decryptor is a functional transformation where a static data constant $D$ is replaced by a unique, randomized recovery function $F_i$ such that $F_i(S) = D$, where $S$ is a session-specific secret.
 
-In PyObfuscator v2.0, every string literal generates a unique AST subgraph:
+In Skjol v2.0, every string literal generates a unique AST subgraph:
 1.  **Randomized Keying:** Each string uses a different XOR key and varied encoding (inline bytes, hex-slices, or base64-derivation).
 2.  **Variable Name Entropy:** Local variable names within the recovery lambda are derived from a cryptographically secure 256-bit `TransformationContext` secret.
 3.  **Syntactic Diversity (v2.0.1):** The decoding loop is randomly selected from three distinct structural patterns:
@@ -65,7 +65,7 @@ In PyObfuscator v2.0, every string literal generates a unique AST subgraph:
 
 ### 4.3 Honey-Pot Identifiers
 
-PyObfuscator v2.0 injects "Enticing Identifiers" (e.g., `_AWS_SECRET_KEY`, `ADMIN_PASSWORD`) into the module namespace. These are implemented as `property` descriptors or proxy objects that:
+Skjol v2.0 injects "Enticing Identifiers" (e.g., `_AWS_SECRET_KEY`, `ADMIN_PASSWORD`) into the module namespace. These are implemented as `property` descriptors or proxy objects that:
 1.  **Silent Fail:** Triggers a `RuntimeError` only when accessed via `getattr()` or a debugger's "inspect" command.
 2.  **Entropy Poisoning:** Corrupts the global state if modified, leading to decryption failures in legitimate code.
 
@@ -91,13 +91,13 @@ This layer defeats static analysis tools like `uncompyle6` and `decompyle3`, as 
 **Definition 6.1:** White-Box Cryptography (WBC) is a technique used to implement cryptographic algorithms in such a way that the secret keys are "baked" into the implementation and are never present in memory as contiguous byte arrays.
 
 ### 6.1 Look-Up Table (LUT) Implementation
-PyObfuscator uses a LUT-based approach:
+Skjol uses a LUT-based approach:
 1. **Key Derivation**: A 32-byte master key is expanded into sixteen randomized substitution tables (S-Boxes).
 2. **Transformation**: Each byte of the sensitive data is transformed by passing through its corresponding randomized table.
 3. **Decryption via State Transition**: The "decryption" is mathematically equivalent to a path through these tables. 
 
 ### 6.2 Resilience to Memory Dumping
-Standard AES implementations are vulnerable to "Key Finders" that scan RAM for high-entropy 128/256-bit sequences. In PyObfuscator's WBC mode, there is no master key in memory; only randomized integers spread across 4KB of lookup tables.
+Standard AES implementations are vulnerable to "Key Finders" that scan RAM for high-entropy 128/256-bit sequences. In Skjol's WBC mode, there is no master key in memory; only randomized integers spread across 4KB of lookup tables.
 
 ---
 
@@ -142,13 +142,15 @@ The integrated native compilation pipeline works as follows:
 
 By using session-blinded constants and non-linear arithmetic in opaque predicates (e.g., $x \oplus key$ where $key$ is generated at runtime), we significantly increase the search space for SMT solvers like Z3 used in automated de-obfuscation tools.
 
-### 8.2 Comparison of Protection Levels
+### 8.2 Evaluation maturity
 
-| Feature | Static Analysis | Dynamic Analysis | Automated Unpacking | Resistance Score |
-|---------|-----------------|------------------|---------------------|------------------|
-| v1.0 (XOR Strings) | ⚠️ Vulnerable | ❌ Blocked | ⚠️ Partial | 0.45 |
-| v2.0 (Polymorphic) | ✅ Protected | ✅ Protected | ✅ Blocked | 0.71 |
-| v2.0.2 (+ VM/WBC) | ⭐ Advanced | ⭐ Advanced | ⭐ Advanced | 0.87 |
+Skjol has executable correctness tests, preliminary source-level visibility
+heuristics, and a reproducible Python runtime-interposition attack. The current
+attack captured decrypted code and canaries in all tested default and hardened
+artifacts, so the Python runtime must be treated as an observable boundary. The
+project does not assign numeric resistance scores or claim that broader dynamic
+analysis and automated unpacking are blocked. Such claims require a larger
+representative corpus, additional attack procedures, and independent review.
 
 ---
 

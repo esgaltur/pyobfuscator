@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyobfuscator"
-version = "2.0.0"
-description = "A Python code obfuscation library with advanced runtime protection"
+name = "skjol"
+dynamic = ["version"]
+description = "Skjol protects Python code through obfuscation, encryption, and runtime defenses"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.10"
@@ -46,22 +46,26 @@ dev = [
 ]
 
 [project.scripts]
+skjol = "pyobfuscator.cli:main"
 pyobfuscator = "pyobfuscator.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/esgaltur/pyobfuscator"
-Documentation = "https://github.com/esgaltur/pyobfuscator#readme"
-Repository = "https://github.com/esgaltur/pyobfuscator"
-Issues = "https://github.com/esgaltur/pyobfuscator/issues"
-Changelog = "https://github.com/esgaltur/pyobfuscator/releases"
+Homepage = "https://github.com/esgaltur/skjol"
+Documentation = "https://github.com/esgaltur/skjol#readme"
+Repository = "https://github.com/esgaltur/skjol"
+Issues = "https://github.com/esgaltur/skjol/issues"
+Changelog = "https://github.com/esgaltur/skjol/releases"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["pyobfuscator*"]
+include = ["skjol*", "pyobfuscator*"]
 exclude = ["examples*"]
 
 [tool.setuptools.package-data]
 pyobfuscator = ["README.md"]
+
+[tool.setuptools.dynamic]
+version = {attr = "pyobfuscator._version.__version__"}
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

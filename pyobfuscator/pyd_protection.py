@@ -31,6 +31,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional, Tuple, Dict, Any, List
 
+from ._version import __version__
+from .constants import PRODUCT_NAME, RUNTIME_ENTRY_POINT, RUNTIME_MODULE_PREFIX
 from .crypto import CryptoEngine, get_machine_id
 
 
@@ -79,7 +81,7 @@ class PydRuntimeProtector:
 
     def __init__(
         self,
-        license_info: str = "PyObfuscator PYD Protection",
+        license_info: str = "Skjol PYD Protection",
         encryption_key: Optional[bytes] = None,
         expiration_date: Optional[datetime] = None,
         allowed_machines: Optional[List[str]] = None,
@@ -179,10 +181,10 @@ class PydRuntimeProtector:
         # Sanitize filename for comment (remove path, keep basename)
         safe_filename = Path(filename).name if filename else self.DEFAULT_FILENAME
 
-        return f'''# PyObfuscator 2.0.0 (PYD), {self.runtime_id}, {self.license_info}, {timestamp}
+        return f'''# {PRODUCT_NAME} {__version__} (PYD), {self.runtime_id}, {self.license_info}, {timestamp}
 # Source: {safe_filename}
-from pyobfuscator_runtime_{self.runtime_id} import __pyobfuscator__
-__pyobfuscator__(__name__, __file__, b'{encoded_payload}')
+from {RUNTIME_MODULE_PREFIX}{self.runtime_id} import {RUNTIME_ENTRY_POINT}
+{RUNTIME_ENTRY_POINT}(__name__, __file__, b'{encoded_payload}')
 '''
 
     def _get_template_values(self) -> Dict[str, str]:
@@ -387,7 +389,7 @@ __pyobfuscator__(__name__, __file__, b'{encoded_payload}')
 
     def _get_main_entry_code(self, is_cython: bool = False) -> str:
         """
-        Get the main __pyobfuscator__ entry point code.
+        Get the main Skjol runtime entry point code.
 
         Args:
             is_cython: If True, generate Cython-compatible code
@@ -403,7 +405,7 @@ __pyobfuscator__(__name__, __file__, b'{encoded_payload}')
 
         return f'''
 # ============== Main Entry Point ==============
-def __pyobfuscator__(name, file, payload):
+def {RUNTIME_ENTRY_POINT}(name, file, payload):
     """Decrypt and execute protected code with security checks."""{cdef_vars}
     key_copy = bytearray(_KEY)
     
@@ -491,7 +493,7 @@ def __pyobfuscator__(name, file, payload):
         return f'''# cython: language_level=3
 # cython: boundscheck=False
 # cython: wraparound=False
-# PyObfuscator PYD Runtime Module - {tv['runtime_id']}
+# {PRODUCT_NAME} PYD Runtime Module - {tv['runtime_id']}
 # AES-256-GCM encryption with PBKDF2 key derivation
 # Advanced protection: anti-debug, expiration, machine binding
 # Compiled runtime for maximum protection
@@ -562,15 +564,15 @@ cdef str _SERIAL_HEADER = {tv['serial_header']}
 
     def _create_setup_py(self) -> str:
         """Create the setup.py for building the .pyd."""
-        return f'''# Setup script for building pyobfuscator_runtime_{self.runtime_id}.pyd
+        return f'''# Setup script for building {RUNTIME_MODULE_PREFIX}{self.runtime_id}.pyd
 from setuptools import setup
 from Cython.Build import cythonize
 import sys
 
 setup(
-    name="pyobfuscator_runtime_{self.runtime_id}",
+    name="{RUNTIME_MODULE_PREFIX}{self.runtime_id}",
     ext_modules=cythonize(
-        "pyobfuscator_runtime_{self.runtime_id}.pyx",
+        "{RUNTIME_MODULE_PREFIX}{self.runtime_id}.pyx",
         compiler_directives={{
             'language_level': 3,
             'boundscheck': False,
@@ -607,7 +609,7 @@ setup(
 
         # If not cleaning up, write files to output_dir for inspection
         if not cleanup:
-            pyx_file = output_dir / f"pyobfuscator_runtime_{self.runtime_id}.pyx"
+            pyx_file = output_dir / f"{RUNTIME_MODULE_PREFIX}{self.runtime_id}.pyx"
             setup_file = output_dir / self.SETUP_PY_FILENAME
             with open(pyx_file, 'w') as f:
                 f.write(pyx_code)
@@ -619,7 +621,7 @@ setup(
             tmpdir = Path(tmpdir)
 
             # Write Cython source
-            pyx_file = tmpdir / f"pyobfuscator_runtime_{self.runtime_id}.pyx"
+            pyx_file = tmpdir / f"{RUNTIME_MODULE_PREFIX}{self.runtime_id}.pyx"
 
             with open(pyx_file, 'w') as f:
                 f.write(pyx_code)
@@ -643,13 +645,13 @@ setup(
                     return None
 
                 # Find the built .pyd file
-                for f in tmpdir.glob(f"pyobfuscator_runtime_{self.runtime_id}*.pyd"):
+                for f in tmpdir.glob(f"{RUNTIME_MODULE_PREFIX}{self.runtime_id}*.pyd"):
                     dest = output_dir / f.name
                     shutil.copy2(f, dest)
                     return dest
 
                 # On Linux, look for .so file
-                for f in tmpdir.glob(f"pyobfuscator_runtime_{self.runtime_id}*.so"):
+                for f in tmpdir.glob(f"{RUNTIME_MODULE_PREFIX}{self.runtime_id}*.so"):
                     dest = output_dir / f.name
                     shutil.copy2(f, dest)
                     return dest
@@ -691,7 +693,7 @@ setup(
         }
 
         # Write Cython source (for manual building)
-        pyx_path = output_dir / f"pyobfuscator_runtime_{self.runtime_id}.pyx"
+        pyx_path = output_dir / f"{RUNTIME_MODULE_PREFIX}{self.runtime_id}.pyx"
         with open(pyx_path, 'w', encoding='utf-8') as f:
             f.write(pyx)
         result['pyx'] = pyx_path
@@ -726,7 +728,7 @@ setup(
         results: Dict[str, Any]
     ) -> None:
         """Copy runtime files to output directory."""
-        runtime_name = f'pyobfuscator_runtime_{self.runtime_id}'
+        runtime_name = f'{RUNTIME_MODULE_PREFIX}{self.runtime_id}'
 
         if file_result.get('pyx'):
             pyx_dest = output_dir / f'{runtime_name}.pyx'
@@ -800,7 +802,7 @@ setup(
         common_code = self._get_common_runtime_code(is_cython=False)
         main_entry = self._get_main_entry_code(is_cython=False)
 
-        runtime_code = f'''# PyObfuscator Runtime Module - {tv['runtime_id']}
+        runtime_code = f'''# {PRODUCT_NAME} Runtime Module - {tv['runtime_id']}
 # Pure Python fallback with AES-256-GCM encryption
 # Advanced protection: anti-debug, expiration, machine binding
 # Install cryptography package for better performance: pip install cryptography
@@ -854,7 +856,7 @@ _SERIAL_HEADER = {tv['serial_header']}
 {common_code}
 {main_entry}
 '''
-        runtime_path = output_dir / f'pyobfuscator_runtime_{self.runtime_id}.py'
+        runtime_path = output_dir / f'{RUNTIME_MODULE_PREFIX}{self.runtime_id}.py'
         output_dir.mkdir(parents=True, exist_ok=True)
         with open(runtime_path, 'w', encoding='utf-8') as f:
             f.write(runtime_code)

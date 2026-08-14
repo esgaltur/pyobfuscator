@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Example: Obfuscate a sample project directory using PyObfuscator.
+Example: Obfuscate a sample project directory using Skjol.
 
 Creates a temporary sample project, applies obfuscation, and shows the results.
 """
@@ -12,7 +12,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from pyobfuscator import Obfuscator
+from skjol import Obfuscator
 
 
 def create_sample_project(project_dir: Path) -> None:
@@ -115,7 +115,7 @@ def main():
         create_sample_project(project_dir)
 
         print("=" * 55)
-        print("PyObfuscator v2.0 - Directory Obfuscation Example")
+        print("Skjol v2.0 - Directory Obfuscation Example")
         print("=" * 55)
         print(f"Input:  {project_dir}")
         print(f"Output: {output_dir}")

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-PyObfuscator - Advanced Python Code Protection Orchestrator.
+Skjol - Advanced Python Code Protection Orchestrator.
 
 Implements the Application Service in a Hexagonal Architecture.
 Uses a Transformation Pipeline to apply multiple obfuscation steps.
@@ -230,6 +230,17 @@ class Obfuscator:
             
         return obfuscated
 
+    def _collect_directory_definitions(self, py_files: List[Tuple[Path, Path]]) -> None:
+        """Populate the shared name map before transforming a multi-file project."""
+        for py_file, _ in py_files:
+            try:
+                source = self.file_processor.read_file(py_file)
+                tree = ast.parse(source)
+                collector = DefinitionCollector(self.name_generator, self.exclude_names)
+                collector.visit(tree)
+            except Exception as e:
+                logger.warning(f"Definition collection failed for {py_file}: {e}")
+
     def obfuscate_directory(
         self,
         input_dir: Path,
@@ -247,14 +258,7 @@ class Obfuscator:
         py_files = self.file_processor.collect_python_files(input_dir, recursive, exclude_patterns)
 
         # PHASE 1: Collection
-        for py_file, _ in py_files:
-            try:
-                source = self.file_processor.read_file(py_file)
-                tree = ast.parse(source)
-                collector = DefinitionCollector(self.name_generator, self.exclude_names)
-                collector.visit(tree)
-            except Exception as e:
-                logger.warning(f"Phase 1 failed for {py_file}: {e}")
+        self._collect_directory_definitions(py_files)
 
         # PHASE 2: Transformation
         results = {}
@@ -268,6 +272,30 @@ class Obfuscator:
                 logger.error(f"Phase 2 failed for {py_file}: {e}")
 
         return results
+
+    def protect_directory(
+        self,
+        input_dir: Path,
+        output_dir: Path,
+        recursive: bool = True,
+        exclude_patterns: Optional[List[str]] = None,
+    ) -> Dict[str, Any]:
+        """Obfuscate and encrypt a directory with a shared cross-file name map."""
+        if not isinstance(self.runtime_protector, RuntimeProtector):
+            raise ValueError("Directory encryption requires the Python runtime protector")
+
+        input_dir = Path(input_dir)
+        patterns = (exclude_patterns or []) + DEFAULT_EXCLUDE_PATTERNS
+        py_files = self.file_processor.collect_python_files(input_dir, recursive, patterns)
+        self._collect_directory_definitions(py_files)
+
+        return self.runtime_protector.protect_directory(
+            input_dir,
+            output_dir,
+            recursive=recursive,
+            exclude_patterns=patterns,
+            source_transform=self.obfuscate_source,
+        )
 
     def protect_source(self, source: str, filename: str = "<protected>") -> Tuple[str, str]:
         """

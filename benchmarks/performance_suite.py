@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-PyObfuscator Performance & Security Benchmarking Suite.
+Skjol Performance & Security Benchmarking Suite.
 
 Measures the overhead of various obfuscation layers on different workloads.
 """
@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Callable
 import statistics
 
-from pyobfuscator import Obfuscator
+from skjol import Obfuscator
 
 # Define Standard Workloads
 WORKLOADS = {

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Custom exceptions for PyObfuscator.
+Custom exceptions for Skjol.
 
 Provides a hierarchy of exceptions for better error handling and
 more informative error messages throughout the library.
@@ -11,10 +11,10 @@ from typing import Optional
 
 class PyObfuscatorError(Exception):
     """
-    Base exception for all PyObfuscator errors.
+    Legacy-named base exception for all Skjol errors.
 
     All custom exceptions in this library inherit from this class,
-    making it easy to catch any PyObfuscator-related error.
+    making it easy to catch any Skjol-related error.
     """
 
     def __init__(self, message: str, details: Optional[str] = None):
@@ -26,6 +26,11 @@ class PyObfuscatorError(Exception):
         if self.details:
             return f"{self.message}: {self.details}"
         return self.message
+
+
+# Canonical name after the Skjol rebrand. The legacy class remains available
+# so existing exception handlers continue to work.
+SkjolError = PyObfuscatorError
 
 
 # =============================================================================

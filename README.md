@@ -1,15 +1,14 @@
-# PyObfuscator v2.0.2
+# Skjol v2.0.2
 
-[![CI](https://github.com/esgaltur/pyobfuscator/actions/workflows/ci.yml/badge.svg)](https://github.com/esgaltur/pyobfuscator/actions/workflows/ci.yml)
+[![CI](https://github.com/esgaltur/skjol/actions/workflows/ci.yml/badge.svg)](https://github.com/esgaltur/skjol/actions/workflows/ci.yml)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Red Team Score](https://img.shields.io/badge/Red_Team_Resistance-0.87/1.0-green.svg)](#security-metrics)
 
-**PyObfuscator** is a principal-grade Python code protection framework designed for high-security backend systems and proprietary algorithm protection. It moves beyond simple renaming to provide multi-layer defense-in-depth using instruction-level virtualization, white-box cryptography, and control flow flattening.
+**Skjol** is a Python code protection framework for proprietary applications and algorithms. It combines AST transformation, authenticated encryption, runtime protection, instruction-level virtualization, white-box cryptography, and control-flow flattening. These defenses raise the cost of analysis; they cannot make recoverable Python code impossible to reverse engineer.
 
 ## 🛡️ Key Security Features
 
-PyObfuscator employs a **Hexagonal Architecture** to deliver industry-leading protection layers:
+Skjol uses a **Hexagonal Architecture** to compose its protection layers:
 
 - **Instruction-Level Virtualization**: Compiles sensitive Python logic into a proprietary bytecode executed by a custom, randomized stack-based VM.
 - **White-Box Cryptography (WBC)**: LUT-based symmetric encryption where the key is "baked" into randomized substitution tables, eliminating contiguous 32-byte secrets from memory.
@@ -27,40 +26,98 @@ PyObfuscator employs a **Hexagonal Architecture** to deliver industry-leading pr
 | **Microservice Hardening** | Polymorphic Strings + Integrity Checks |
 | **Security Research** | Red Team Metrics + Semantic Fuzzing |
 
-## 📊 Security Metrics (Red Teaming)
+## Security evaluation status
 
-We quantify our security using an automated adversary suite that measures:
-- **Resistance Score: 0.87/1.0** (Hardened Tier)
-- **Structural Complexity Dispersion**: 5.0x increase in logical branching.
-- **Identifier Recovery Rate**: < 10% for protected symbols.
+The repository includes a reproducible black-box evaluation that protects
+programs through the public CLI, executes the resulting artifacts, and performs
+static and dynamic extraction attacks. The dynamic attack interposes Python's
+`eval`, `marshal.loads`, and `exec` functions to test whether decrypted code and
+runtime canaries can be recovered. Results are reported as observed attack
+success rates, never as a universal security score.
+
+In the current recorded run, all 18 artifacts executed correctly and none
+exposed the canary through static text search. The dynamic attack captured the
+decrypted code object and recovered the canary in all 18 artifacts, including
+the hardened profile. This identifies runtime extraction as an open security
+limitation. Here, zero static recoveries is the desired result; the dynamic
+`18/18` recovery outcomes are what require mitigation.
+
+Earlier documentation presented results from one small source-level fixture as
+a `0.87` resistance score. That claim was not independently validated and has
+been withdrawn. The old source-level measurements remain available only as
+development heuristics.
+
+Security claims should instead be supported by reproducible multi-fixture
+benchmarks, documented environments and attack procedures, raw results, and
+independent review. See the [security evaluation](docs/SECURITY_EVALUATION.md)
+for the threat model, reproduction command, results, and interpretation.
 
 ## 🛠️ Quick Start
 
 ### Installation
-```bash
-pip install pyobfuscator
+```powershell
+pip install skjol
 ```
 
-### Basic Obfuscation
-```bash
-pyobfuscator obfuscate -i ./my_app -o ./dist
+### Full Protection (Default)
+
+The `obfuscate` command applies AST obfuscation and AES-256-GCM runtime
+encryption by default. It accepts either a Python file or a directory.
+
+```powershell
+python -m skjol obfuscate -i .\my_app -o .\dist
 ```
 
-### High-Security Protection
-```bash
-pyobfuscator obfuscate -i secret_script.py -o protected.py --virtualize --whitebox --cff --intensity 3
+Each output directory containing a protected Python file also contains its
+matching `skjol_runtime_<id>.py`. Distribute that runtime alongside the
+protected file. To apply AST transformations without encryption, add
+`--no-encrypt`.
+
+### Advanced Protection
+
+```powershell
+python -m skjol obfuscate -i .\secret_script.py -o .\protected.py --code-virtualization --whitebox --control-flow-flatten --intensity 3
+```
+
+Disable anti-debugging only when the target environment requires tracing or
+instrumentation:
+
+```powershell
+python -m skjol obfuscate -i .\app.py -o .\dist\app.py --no-anti-debug
+```
+
+## Rename and compatibility
+
+The project and distribution were renamed from **PyObfuscator** to **Skjol**.
+New installations should use `pip install skjol`, `python -m skjol`, the `skjol`
+console command, and `from skjol import ...`. Installing Skjol also provides the
+legacy `pyobfuscator` Python package and console command as compatibility aliases.
+Existing configuration files named `pyobfuscator.json` or `pyobfuscator.toml`
+remain readable, while newly generated configuration uses the `skjol` name.
+
+## ✅ Testing
+
+The end-to-end tests invoke the public CLI, execute generated output, and use
+pytest-managed temporary directories for automatic cleanup.
+
+```powershell
+python -m pytest -q tests\test_cli_protection.py
+python -m pytest -q
 ```
 
 ## 📖 Documentation
 
 - [Technical Documentation](docs/TECHNICAL_DOCUMENTATION.md) - Architectural deep-dive
+- [Requirements and Roadmap](docs/REQUIREMENTS_AND_ROADMAP.md) - Testable product requirements, new ideas, and release phases
+- [Security Evaluation](docs/SECURITY_EVALUATION.md) - Reproducible static and dynamic attack outcomes
+- [Rust Native Runtime Plan](docs/RUST_NATIVE_RUNTIME_CONSIDERATION.md) - Architecture, implementation milestones, tests, and release gates
 - [Strategic Use Cases](docs/USE_CASES.md) - Implementation patterns
 - [Whitepaper](docs/WHITEPAPER.md) - Theoretical basis and performance research
-- [Red Team Metrics](pyobfuscator/analysis/red_team.py) - Security quantification logic
+- [Evaluation Heuristics](pyobfuscator/analysis/red_team.py) - Source-level development measurements and limitations
 
 ## 🤝 Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to PyObfuscator.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to Skjol.
 
 ## 🔒 Security
 

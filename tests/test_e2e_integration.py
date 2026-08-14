@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-End-to-End Integration Tests for PyObfuscator.
+End-to-End Integration Tests for Skjol.
 
 These tests create real projects, apply obfuscation (with optional encryption),
 verify the protected code works correctly, and clean up.
@@ -426,8 +426,8 @@ result = hidden_function()
         assert "hidden_function" not in protected
 
         # Only the loader should be visible
-        assert "__pyobfuscator__" in protected
-        assert "pyobfuscator_runtime_" in protected
+        assert "__skjol__" in protected
+        assert "skjol_runtime_" in protected
 
     def test_runtime_protector_with_obfuscation(self):
         """Test RuntimeProtector with pre-obfuscated code."""
@@ -461,7 +461,7 @@ assert result == 520, f"Expected 520, got {result}"
 
         # Verify encryption - code structure should be hidden
         assert "def " not in protected  # No function definitions visible
-        assert "__pyobfuscator__" in protected  # Loader present
+        assert "__skjol__" in protected  # Loader present
 
 
 class TestE2ECLI:
