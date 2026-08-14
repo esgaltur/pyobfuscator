@@ -62,5 +62,7 @@ def test_remote_tag_check_does_not_depend_on_an_expected_404() -> None:
     script = RELEASE_SCRIPT.read_text(encoding="utf-8")
 
     assert "git/matching-refs/tags/$Tag" in script
+    assert "'--jq',\n        '.[].ref'" in script
+    assert "select(.ref ==" not in script
     assert "git/ref/tags/$Tag" not in script
     assert "Test-GitHubApiResource" not in script

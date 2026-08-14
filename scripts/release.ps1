@@ -101,18 +101,14 @@ function Assert-GitHubReleaseTarget {
     }
 
     $tagRef = "refs/tags/$Tag"
-    $exactTagFilter = "[.[] | select(.ref == `"$tagRef`")] | length"
-    $tagMatchCountText = Get-NativeCommandOutput gh @(
+    $matchingTagRefsText = Get-NativeCommandOutput gh @(
         'api',
         "repos/$Repository/git/matching-refs/tags/$Tag",
         '--jq',
-        $exactTagFilter
+        '.[].ref'
     ) "Checking GitHub tag $Tag"
-    $tagMatchCount = 0
-    if (-not [int]::TryParse($tagMatchCountText, [ref]$tagMatchCount)) {
-        throw "Checking GitHub tag $Tag returned an unexpected result: $tagMatchCountText"
-    }
-    if ($tagMatchCount -gt 0) {
+    $matchingTagRefs = $matchingTagRefsText -split '\r?\n'
+    if ($matchingTagRefs -contains $tagRef) {
         throw "GitHub tag $Tag already exists. Increment pyobfuscator/_version.py first."
     }
 }
