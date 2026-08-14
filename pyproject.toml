@@ -35,7 +35,7 @@ rust = ["cryptography>=46.0.7", "maturin>=1.9,<2"]
 all = ["cryptography>=46.0.7", "cython>=3.0.0"]
 dev = [
     "pytest>=7.0.0",
-    "pytest-cov>=4.0.0",
+    "pytest-cov>=7.1.0",
     "pytest-xdist>=3.0.0",
     "mypy>=1.20.1",
     "black>=24.0.0",
