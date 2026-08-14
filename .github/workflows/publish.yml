@@ -1,8 +1,6 @@
 name: Publish Package
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       publish_to:
@@ -67,7 +65,7 @@ jobs:
   publish-pypi:
     needs: build
     runs-on: ubuntu-latest
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_to == 'pypi')
+    if: github.event.inputs.publish_to == 'pypi'
     environment:
       name: pypi
       url: https://pypi.org/p/skjol

@@ -1,6 +1,67 @@
 # Release Guide for Skjol
 
-This guide explains how to build and publish the `skjol` package to PyPI.
+This guide explains how to publish a GitHub release from Skjol's current
+version and how to publish the package to PyPI as a separate operation.
+
+## GitHub release from the current version
+
+The supported local entry point is `scripts\release.ps1`. It reads the version
+from `pyobfuscator\_version.py`; the version is never entered separately on the
+command line.
+
+Prerequisites:
+
+```powershell
+python -m pip install build twine
+gh auth login
+```
+
+The checkout must be clean and attached to a branch. Draft and public modes
+also require it to be synchronized with its upstream and to use a version whose
+`v<version>` tag does not already exist.
+
+Start with the non-mutating commands:
+
+```powershell
+# Show the derived version, tag, and mode only
+.\scripts\release.ps1 -PlanOnly
+
+# Run all tests, build from committed HEAD, and validate both distributions
+.\scripts\release.ps1
+```
+
+Create a draft release for review:
+
+```powershell
+.\scripts\release.ps1 -Mode Draft
+```
+
+Create a public GitHub release:
+
+```powershell
+.\scripts\release.ps1 -Mode Publish
+```
+
+`Draft` and `Publish` require typing the expected tag as confirmation. Use
+`-Yes` only in deliberate automation. By default, the script waits for the
+GitHub release workflow and returns a failure code if the workflow fails;
+`-NoWait` returns after dispatch.
+
+The script performs these steps:
+
+1. derives `v<version>` from the single version source;
+2. verifies the clean and synchronized Git checkout;
+3. rejects an existing local/remote tag or GitHub release;
+4. runs the complete test suite;
+5. exports committed `HEAD` into an isolated temporary directory;
+6. builds the wheel and source distribution;
+7. validates both with Twine and prints SHA-256 hashes; and
+8. dispatches `.github\workflows\release.yml` only for explicit draft or
+   public modes.
+
+Temporary source and build files are removed on success or failure. GitHub
+publication and PyPI publication are intentionally separate: creating a GitHub
+release does not dispatch the PyPI workflow.
 
 ## Prerequisites
 
@@ -20,7 +81,7 @@ This guide explains how to build and publish the `skjol` package to PyPI.
 
 ## Quick Release
 
-### Option 1: Using the publish.py script (Recommended)
+### Option 1: Using the legacy PyPI script
 
 ```powershell
 # Test on TestPyPI first

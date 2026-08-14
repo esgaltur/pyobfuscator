@@ -10,6 +10,11 @@ on:
         description: 'Version to release (without v prefix, e.g., 1.0.0)'
         required: true
         type: string
+      draft:
+        description: 'Create the GitHub release as a draft'
+        required: false
+        default: true
+        type: boolean
 
 permissions:
   contents: write
@@ -60,7 +65,7 @@ jobs:
         files: |
           dist/*.whl
           dist/*.tar.gz
-        draft: false
+        draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft }}
         prerelease: ${{ contains(steps.version.outputs.version, 'alpha') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'rc') }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
