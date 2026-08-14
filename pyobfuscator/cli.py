@@ -78,6 +78,11 @@ HELP_INPUT = 'Input file or directory'
 HELP_OUTPUT = 'Output file or directory'
 DEFAULT_EXCLUDES = ['__pycache__', '*.pyc', 'test_*', '*_test.py']
 DEFAULT_LICENSE = f'Protected by {PRODUCT_NAME}'
+LOCAL_IMPORT_MARKERS = ('from .', 'from app', 'import app')
+LOCAL_IMPORT_WARNING = (
+    "Warning: This file appears to have local imports.\n"
+    "         For multi-file projects, obfuscate the entire directory.\n"
+)
 
 
 @dataclass(frozen=True)
@@ -426,76 +431,124 @@ def _create_obfuscator(parsed: argparse.Namespace) -> Obfuscator:
     )
 
 
+class SingleFileObfuscationWorkflow:
+    """Coordinate one input file without mixing backend and reporting logic."""
+
+    def __init__(
+        self,
+        obfuscator: Obfuscator,
+        input_path: Path,
+        output_path: Path,
+        verbose: bool,
+    ):
+        self._obfuscator = obfuscator
+        self._input_path = input_path
+        self._output_path = output_path
+        self._verbose = verbose
+
+    def run(self) -> int:
+        target_path = self._resolve_target_path()
+        _warn_if_local_imports(self._input_path)
+        self._print_start()
+        if self._is_encrypted():
+            self._protect(target_path)
+        else:
+            self._obfuscate(target_path)
+        return 0
+
+    def _resolve_target_path(self) -> Path:
+        if self._output_path.is_dir():
+            return self._output_path / self._input_path.name
+        if not self._output_path.suffix and not self._output_path.exists():
+            self._output_path.mkdir(parents=True, exist_ok=True)
+            return self._output_path / self._input_path.name
+        self._output_path.parent.mkdir(parents=True, exist_ok=True)
+        return self._output_path
+
+    def _protect(self, target_path: Path) -> None:
+        if self._uses_rust_runtime():
+            self._protect_with_rust(target_path)
+            return
+        self._protect_with_python(target_path)
+
+    def _protect_with_rust(self, target_path: Path) -> None:
+        from .runtime_backends import RustRuntimeBackend
+
+        build = RustRuntimeBackend(self._obfuscator).protect_file(
+            self._input_path,
+            target_path,
+        )
+        self._print_output(target_path, build.extension_path)
+        print("Protection complete! (Rust native runtime, AES-256-GCM)")
+
+    def _protect_with_python(self, target_path: Path) -> None:
+        source = self._input_path.read_text(encoding='utf-8')
+        protected, runtime = self._obfuscator.protect_source(
+            source,
+            self._input_path.name,
+        )
+        target_path.write_text(protected, encoding='utf-8')
+        runtime_path = self._python_runtime_path(target_path)
+        runtime_path.write_text(runtime, encoding='utf-8')
+        self._print_output(target_path, runtime_path)
+        print("Protection complete! (Code is encrypted with AES-256-GCM)")
+
+    def _python_runtime_path(self, target_path: Path) -> Path:
+        runtime_id = self._obfuscator.runtime_protector.runtime_id
+        return target_path.parent / f"{RUNTIME_MODULE_PREFIX}{runtime_id}.py"
+
+    def _obfuscate(self, target_path: Path) -> None:
+        self._obfuscator.obfuscate_file(self._input_path, target_path)
+        self._print_output(target_path)
+        print("Obfuscation complete!")
+
+    def _print_start(self) -> None:
+        if not self._verbose:
+            return
+        action = "Protecting (obfuscate + encrypt)" if self._is_encrypted() else "Obfuscating"
+        print(f"{action} {self._input_path}...")
+
+    def _print_output(
+        self,
+        target_path: Path,
+        runtime_path: Optional[Path] = None,
+    ) -> None:
+        if not self._verbose:
+            return
+        print(f"Output written to {target_path}")
+        if runtime_path is not None:
+            print(f"Runtime module: {runtime_path}")
+
+    def _is_encrypted(self) -> bool:
+        return bool(self._obfuscator.config.get('encrypt_code'))
+
+    def _uses_rust_runtime(self) -> bool:
+        return self._obfuscator.config.get('runtime_backend') == 'rust'
+
+
 def _obfuscate_single_file(
     obfuscator: Obfuscator,
     input_path: Path,
     output_path: Path,
-    verbose: bool
+    verbose: bool,
 ) -> int:
-    """Obfuscate a single file. Returns exit code."""
-    # If output_path is an existing directory, put the file inside it
-    if output_path.is_dir():
-        target_path = output_path / input_path.name
-    # If output_path doesn't exist but looks like a directory (no extension), create it
-    elif not output_path.suffix and not output_path.exists():
-        output_path.mkdir(parents=True, exist_ok=True)
-        target_path = output_path / input_path.name
-    # Ensure parent directory exists
-    else:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        target_path = output_path
-
-    _warn_if_local_imports(input_path)
-
-    if verbose:
-        msg = "Protecting (obfuscate + encrypt)" if obfuscator.config.get('encrypt_code') else "Obfuscating"
-        print(f"{msg} {input_path}...")
-
-    if obfuscator.config.get('encrypt_code'):
-        if obfuscator.config.get('runtime_backend') == 'rust':
-            from .runtime_backends import RustRuntimeBackend
-
-            build = RustRuntimeBackend(obfuscator).protect_file(input_path, target_path)
-            if verbose:
-                print(f"Output written to {target_path}")
-                print(f"Runtime module: {build.extension_path}")
-            print("Protection complete! (Rust native runtime, AES-256-GCM)")
-            return 0
-        # Apply full protection: obfuscation + encryption
-        source = input_path.read_text(encoding='utf-8')
-        protected, runtime = obfuscator.protect_source(source, str(input_path.name))
-
-        target_path.write_text(protected, encoding='utf-8')
-
-        # Write runtime module in the same directory
-        runtime_id = obfuscator.runtime_protector.runtime_id
-        runtime_path = target_path.parent / f"{RUNTIME_MODULE_PREFIX}{runtime_id}.py"
-        runtime_path.write_text(runtime, encoding='utf-8')
-
-        if verbose:
-            print(f"Output written to {target_path}")
-            print(f"Runtime module: {runtime_path}")
-        print("Protection complete! (Code is encrypted with AES-256-GCM)")
-    else:
-        # Just obfuscation
-        obfuscator.obfuscate_file(input_path, target_path)
-        if verbose:
-            print(f"Output written to {target_path}")
-        print("Obfuscation complete!")
-
-    return 0
+    """Run the single-file workflow and return its CLI exit code."""
+    return SingleFileObfuscationWorkflow(
+        obfuscator,
+        input_path,
+        output_path,
+        verbose,
+    ).run()
 
 
-def _warn_if_local_imports(input_path: Path):
+def _warn_if_local_imports(input_path: Path) -> None:
     """Warn user if file has local imports."""
     try:
         content = input_path.read_text(encoding='utf-8')
-        if any(x in content for x in ['from .', 'from app', 'import app']):
-            print("Warning: This file appears to have local imports.", file=sys.stderr)
-            print("         For multi-file projects, obfuscate the entire directory.", file=sys.stderr)
-            print("", file=sys.stderr)
-    except Exception:
-        pass
+    except (OSError, UnicodeError):
+        return
+    if any(marker in content for marker in LOCAL_IMPORT_MARKERS):
+        print(LOCAL_IMPORT_WARNING, file=sys.stderr)
 
 
 def _obfuscate_directory(

@@ -73,6 +73,10 @@ matching `skjol_runtime_<id>.py`. Distribute that runtime alongside the
 protected file. To apply AST transformations without encryption, add
 `--no-encrypt`.
 
+The default portable backend does not require Rust, Cargo, or Maturin. It has
+also been validated on Ubuntu 22.04 under WSL2 with CPython 3.10 while all three
+native build tools were absent from the test process.
+
 ### Experimental Rust Native Runtime
 
 The opt-in Rust backend moves authenticated decryption, metadata parsing,
@@ -85,11 +89,11 @@ python -m skjol obfuscate -i .\app.py -o .\dist\app.py --runtime rust
 ```
 
 The output contains the Python launcher and a matching
-`skjol_runtime_<id>.pyd` (or `.so` on Unix). Keep them together. The current
-proof of concept has been exercised on Windows 11 with CPython 3.12; the
-portable `python` backend remains the default. Expiration, machine binding,
-domain locking, white-box encryption, and code virtualization currently fail
-closed when the Rust backend is selected.
+`skjol_runtime_<id>.pyd` (or `.so` on Linux). Keep them together. The current
+proof of concept has been exercised on Windows 11 with CPython 3.12 and Ubuntu
+22.04 under WSL2 with CPython 3.10. The portable `python` backend remains the
+default. Expiration, machine binding, domain locking, white-box encryption, and
+code virtualization currently fail closed when the Rust backend is selected.
 
 A focused native trial executed successfully and prevented the repository's
 Python-level `eval`, `exec`, and `marshal.loads` hooks from capturing the

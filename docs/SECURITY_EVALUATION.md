@@ -80,19 +80,20 @@ interposed `eval` call. The default and hardened profiles had the same outcome.
 
 ## Experimental Rust-runtime result
 
-On the same Windows 11 and CPython 3.12.10 environment, a focused automated
-proof-of-concept trial protected one independent canary fixture through the
-public CLI with `--runtime rust --no-anti-debug`. The test then executed the
-artifact normally and applied the same Python-level `eval`, `exec`, and
-`marshal.loads` interposition procedure:
+Focused automated proof-of-concept trials were run on Windows 11 with CPython
+3.12.10 and Ubuntu 22.04 under WSL2 with CPython 3.10.12. Each trial protected
+one independent canary fixture through the public CLI with
+`--runtime rust --no-anti-debug`, executed it normally, and applied the same
+Python-level `eval`, `exec`, and `marshal.loads` interposition procedure:
 
-| Outcome | Observed |
-|---|---:|
-| Native protection completed | 1/1 |
-| Normal native execution passed | 1/1 |
-| Protected code objects captured by Python hooks | 0/1 |
-| Native canaries recovered by Python hooks | 0/1 |
-| Modified native ciphertext rejected | 1/1 |
+| Outcome | Windows | Linux/WSL2 |
+|---|---:|---:|
+| Native protection completed | 1/1 | 1/1 |
+| Normal native execution passed | 1/1 | 1/1 |
+| Protected code objects captured by Python hooks | 0/1 | 0/1 |
+| Native canaries recovered by Python hooks | 0/1 | 0/1 |
+| Modified native ciphertext rejected | 1/1 | 1/1 |
+| Nested-directory native execution passed | 1/1 | 1/1 |
 
 This is an implementation test, not the full native security release gate and
 not evidence of universal resistance. The offline root key is embedded in the

@@ -14,9 +14,10 @@ inspect.
 The implemented path now builds a locked PyO3 crate through Maturin, emits a
 version-specific native extension, and executes authenticated artifacts without
 calling Python-level `eval`, `exec`, or `marshal.loads`. Single-file and nested
-directory CLI tests pass. One focused adversarial trial recorded zero protected
+directory CLI tests pass on Windows 11/CPython 3.12 and Ubuntu 22.04
+WSL2/CPython 3.10. Focused adversarial trials recorded zero protected
 code-object captures and zero canary recoveries through those Python hooks.
-That result is narrower than the planned 18-artifact evaluation and does not
+Those results are narrower than the planned 18-artifact evaluation and do not
 cover native process attacks.
 
 The current portable Python runtime will remain available for users who value
@@ -506,12 +507,12 @@ entries cannot yet be described as one atomic operation.
 | Direct CPython marshal decode and evaluation | Implemented |
 | Zeroized derived key, plaintext, and decompressed buffers | Implemented |
 | Locked Maturin release build with temporary Cargo target | Implemented |
-| CLI single-file and nested-directory execution | Passing on Windows/CPython 3.12 |
-| Python-hook code capture/canary recovery | 0/1 in focused automated trial |
+| CLI single-file and nested-directory execution | Passing on Windows/CPython 3.12 and Linux/CPython 3.10 |
+| Python-hook code capture/canary recovery | 0/1 in each focused Windows and Linux trial |
 | Ciphertext tamper rejection | Passing in Python and native E2E tests |
 | Expiration, machine, domain, white-box, virtualization | Explicitly rejected |
 | Full 18-artifact native evaluation and native debugger procedure | Pending |
-| Cross-platform and CPython 3.10–3.13 matrix | Pending |
+| Broader native platform and CPython 3.10–3.13 matrix | Pending |
 | Remote/short-lived key provider | Pending |
 
 Command output must redact the root key, derived keys, decrypted payloads, and

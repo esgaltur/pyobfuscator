@@ -100,7 +100,8 @@ Runtime-encrypted output imports a generated
 `skjol_runtime_<id>.py`. Keep that file in the same output directory as
 the protected script. Directory protection creates a matching runtime in each
 subdirectory that contains protected Python files, allowing nested entry points
-to run directly.
+to run directly. This default portable backend requires no Rust toolchain or
+Maturin installation.
 
 ### Python API
 
