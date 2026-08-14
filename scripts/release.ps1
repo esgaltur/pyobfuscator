@@ -85,23 +85,6 @@ function Assert-ReleaseCheckout {
     return $branch
 }
 
-function Test-GitHubApiResource {
-    param(
-        [Parameter(Mandatory)] [string]$Endpoint,
-        [Parameter(Mandatory)] [string]$Description
-    )
-
-    $output = & gh api $Endpoint --silent 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        return $true
-    }
-    $diagnostic = ($output | Out-String).Trim()
-    if ($diagnostic -match 'HTTP 404') {
-        return $false
-    }
-    throw "$Description failed: $diagnostic"
-}
-
 function Assert-GitHubReleaseTarget {
     param(
         [Parameter(Mandatory)] [string]$Repository,
@@ -117,10 +100,19 @@ function Assert-GitHubReleaseTarget {
         throw "Local HEAD $localCommit does not match GitHub $Branch at $remoteCommit. Push or synchronize the branch first."
     }
 
-    $tagExists = Test-GitHubApiResource `
-        -Endpoint "repos/$Repository/git/ref/tags/$Tag" `
-        -Description "Checking GitHub tag $Tag"
-    if ($tagExists) {
+    $tagRef = "refs/tags/$Tag"
+    $exactTagFilter = "[.[] | select(.ref == `"$tagRef`")] | length"
+    $tagMatchCountText = Get-NativeCommandOutput gh @(
+        'api',
+        "repos/$Repository/git/matching-refs/tags/$Tag",
+        '--jq',
+        $exactTagFilter
+    ) "Checking GitHub tag $Tag"
+    $tagMatchCount = 0
+    if (-not [int]::TryParse($tagMatchCountText, [ref]$tagMatchCount)) {
+        throw "Checking GitHub tag $Tag returned an unexpected result: $tagMatchCountText"
+    }
+    if ($tagMatchCount -gt 0) {
         throw "GitHub tag $Tag already exists. Increment pyobfuscator/_version.py first."
     }
 }

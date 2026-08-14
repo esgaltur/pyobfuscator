@@ -11,6 +11,7 @@ from pyobfuscator._version import __version__
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 POWERSHELL = shutil.which("pwsh") or shutil.which("powershell")
+RELEASE_SCRIPT = PROJECT_ROOT / "scripts" / "release.ps1"
 
 
 @pytest.mark.skipif(POWERSHELL is None, reason="PowerShell is required")
@@ -20,7 +21,7 @@ def test_release_plan_uses_the_single_version_source() -> None:
             POWERSHELL,
             "-NoProfile",
             "-File",
-            str(PROJECT_ROOT / "scripts" / "release.ps1"),
+            str(RELEASE_SCRIPT),
             "-PlanOnly",
         ],
         cwd=PROJECT_ROOT,
@@ -42,7 +43,7 @@ def test_plan_only_rejects_a_publishing_mode() -> None:
             POWERSHELL,
             "-NoProfile",
             "-File",
-            str(PROJECT_ROOT / "scripts" / "release.ps1"),
+            str(RELEASE_SCRIPT),
             "-PlanOnly",
             "-Mode",
             "Publish",
@@ -55,3 +56,11 @@ def test_plan_only_rejects_a_publishing_mode() -> None:
 
     assert result.returncode != 0
     assert "PlanOnly can only be used with -Mode Validate" in result.stderr
+
+
+def test_remote_tag_check_does_not_depend_on_an_expected_404() -> None:
+    script = RELEASE_SCRIPT.read_text(encoding="utf-8")
+
+    assert "git/matching-refs/tags/$Tag" in script
+    assert "git/ref/tags/$Tag" not in script
+    assert "Test-GitHubApiResource" not in script
