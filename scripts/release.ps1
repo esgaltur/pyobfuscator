@@ -61,8 +61,7 @@ function Get-ProjectVersion {
 function Assert-ReleaseCheckout {
     param(
         [Parameter(Mandatory)] [string]$RepositoryRoot,
-        [Parameter(Mandatory)] [string]$Tag,
-        [Parameter(Mandatory)] [bool]$RequireSynchronized
+        [Parameter(Mandatory)] [string]$Tag
     )
 
     $actualRoot = Get-NativeCommandOutput git @('rev-parse', '--show-toplevel') 'Locating repository root'
@@ -79,25 +78,51 @@ function Assert-ReleaseCheckout {
     if (-not $branch) {
         throw 'Releases cannot be created from a detached HEAD.'
     }
-    if ($RequireSynchronized) {
-        $upstream = Get-NativeCommandOutput git @(
-            'rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'
-        ) 'Reading upstream branch'
-        Invoke-NativeCommand git @('fetch', '--tags', 'origin') 'Refreshing origin and release tags'
-        $counts = Get-NativeCommandOutput git @(
-            'rev-list', '--left-right', '--count', "$upstream...HEAD"
-        ) 'Comparing the checkout with its upstream'
-        $parts = $counts -split '\s+'
-        if ($parts.Count -ne 2 -or $parts[0] -ne '0' -or $parts[1] -ne '0') {
-            throw "HEAD must match $upstream before release (behind/ahead: $counts)."
-        }
-    }
-
     & git rev-parse --verify --quiet "refs/tags/$Tag" *> $null
     if ($LASTEXITCODE -eq 0) {
         throw "Tag $Tag already exists. Increment pyobfuscator/_version.py first."
     }
     return $branch
+}
+
+function Test-GitHubApiResource {
+    param(
+        [Parameter(Mandatory)] [string]$Endpoint,
+        [Parameter(Mandatory)] [string]$Description
+    )
+
+    $output = & gh api $Endpoint --silent 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        return $true
+    }
+    $diagnostic = ($output | Out-String).Trim()
+    if ($diagnostic -match 'HTTP 404') {
+        return $false
+    }
+    throw "$Description failed: $diagnostic"
+}
+
+function Assert-GitHubReleaseTarget {
+    param(
+        [Parameter(Mandatory)] [string]$Repository,
+        [Parameter(Mandatory)] [string]$Branch,
+        [Parameter(Mandatory)] [string]$Tag
+    )
+
+    $localCommit = Get-NativeCommandOutput git @('rev-parse', 'HEAD') 'Reading local commit'
+    $remoteCommit = Get-NativeCommandOutput gh @(
+        'api', "repos/$Repository/commits/$Branch", '--jq', '.sha'
+    ) 'Reading the GitHub branch commit'
+    if ($localCommit -ne $remoteCommit) {
+        throw "Local HEAD $localCommit does not match GitHub $Branch at $remoteCommit. Push or synchronize the branch first."
+    }
+
+    $tagExists = Test-GitHubApiResource `
+        -Endpoint "repos/$Repository/git/ref/tags/$Tag" `
+        -Description "Checking GitHub tag $Tag"
+    if ($tagExists) {
+        throw "GitHub tag $Tag already exists. Increment pyobfuscator/_version.py first."
+    }
 }
 
 function New-ReleaseBuild {
@@ -270,10 +295,7 @@ Get-Command gh -ErrorAction Stop | Out-Null
 Push-Location $repositoryRoot
 $temporaryRoot = Join-Path ([IO.Path]::GetTempPath()) ("skjol-release-" + [guid]::NewGuid().ToString('N'))
 try {
-    $branch = Assert-ReleaseCheckout `
-        -RepositoryRoot $repositoryRoot `
-        -Tag $tag `
-        -RequireSynchronized ($Mode -ne 'Validate')
+    $branch = Assert-ReleaseCheckout -RepositoryRoot $repositoryRoot -Tag $tag
     Invoke-NativeCommand $Python @('-m', 'build', '--version') 'Checking the build frontend'
     Invoke-NativeCommand $Python @('-m', 'twine', '--version') 'Checking Twine'
     New-Item -ItemType Directory -Path $temporaryRoot | Out-Null
@@ -289,10 +311,7 @@ try {
     $repository = Get-NativeCommandOutput gh @(
         'repo', 'view', '--json', 'nameWithOwner', '--jq', '.nameWithOwner'
     ) 'Resolving GitHub repository'
-    & gh release view $tag --repo $repository *> $null
-    if ($LASTEXITCODE -eq 0) {
-        throw "GitHub release $tag already exists. Increment the project version first."
-    }
+    Assert-GitHubReleaseTarget -Repository $repository -Branch $branch -Tag $tag
     Publish-GitHubRelease `
         -ReleaseMode $Mode `
         -Version $version `

@@ -17,8 +17,8 @@ gh auth login
 ```
 
 The checkout must be clean and attached to a branch. Draft and public modes
-also require it to be synchronized with its upstream and to use a version whose
-`v<version>` tag does not already exist.
+also require local `HEAD` to match the same branch on GitHub and to use a
+version whose `v<version>` tag does not already exist.
 
 Start with the non-mutating commands:
 
